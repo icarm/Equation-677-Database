@@ -6,3 +6,15 @@ compatibility_date = "2026-04-23"
 routes = [
   { pattern = "eq677.icarm.cloud", custom_domain = true }
 ]
+
+[assets]
+directory = "./public"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "icarm-eq677"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "eq677"
+database_id = "ec51881d-d094-41b9-b5ac-ed671f85b268"
