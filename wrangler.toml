@@ -1,0 +1,3 @@
+name = "equation-677-database"
+main = "src/index.js"
+compatibility_date = "2026-04-23"
