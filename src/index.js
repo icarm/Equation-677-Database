@@ -8,6 +8,7 @@ import {
   allPage,
   sizePage,
   magmaPage,
+  submitResultPage,
   notFoundPage,
 } from './pages.js'
 
@@ -17,26 +18,15 @@ const HASH_RE = /^[0-9a-f]{64}$/
 
 const app = new Hono()
 
-app.post('/submit', async (c) => {
-  const contentType = (c.req.header('content-type') || '').split(';')[0].trim().toLowerCase()
-  if (contentType && contentType !== 'text/plain') {
-    return c.json({ error: `content-type must be text/plain, got ${contentType}` }, 415)
-  }
-  const raw = await c.req.text()
+async function submitMagma(raw, submitter, env) {
   const parsed = parseText(raw)
-  if (parsed.error) return c.json({ error: parsed.error }, 400)
+  if (parsed.error) return { kind: 'parse_error', message: parsed.error }
   const table = parsed.table
   const n = table.length
-  const submitter = (c.req.header('x-magma-submitter') || '').trim().slice(0, 256) || null
   const check = satisfies677(table)
-  if (!check.ok) {
-    return c.json(
-      { error: 'table does not satisfy Equation 677', witness: { x: check.x, y: check.y } },
-      422,
-    )
-  }
+  if (!check.ok) return { kind: 'not_677', x: check.x, y: check.y }
 
-  const stub = getContainer(c.env.CANONICALIZER)
+  const stub = getContainer(env.CANONICALIZER)
   const canonResp = await stub.fetch('http://container/canonicalize', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -44,43 +34,84 @@ app.post('/submit', async (c) => {
   })
   if (!canonResp.ok) {
     const detail = await canonResp.text()
-    return c.json({ error: 'canonicalizer failed', status: canonResp.status, detail }, 502)
+    return { kind: 'canonicalizer_error', status: canonResp.status, detail }
   }
   const { canonical, is255 } = await canonResp.json()
   const canonicalHash = await sha256Hex(canonical)
-  const r2Key = `magmas/${n}/${canonicalHash}.txt`
 
-  const existing = await c.env.DB.prepare(
+  const existing = await env.DB.prepare(
     'SELECT id, satisfies_255 FROM magmas WHERE canonical_hash = ?',
   )
     .bind(canonicalHash)
     .first()
   if (existing) {
-    return c.json({
-      id: existing.id,
-      canonical_hash: canonicalHash,
-      size: n,
-      satisfies_255: Boolean(existing.satisfies_255),
+    return {
+      kind: 'ok',
       fresh: false,
-    })
+      id: existing.id,
+      hash: canonicalHash,
+      size: n,
+      is255: Boolean(existing.satisfies_255),
+    }
   }
 
-  await c.env.BUCKET.put(r2Key, canonical, {
+  const r2Key = `magmas/${n}/${canonicalHash}.txt`
+  await env.BUCKET.put(r2Key, canonical, {
     httpMetadata: { contentType: 'text/plain; charset=utf-8' },
   })
-  const result = await c.env.DB.prepare(
+  const result = await env.DB.prepare(
     'INSERT INTO magmas (canonical_hash, size, satisfies_255, r2_key, submitted_by) VALUES (?, ?, ?, ?, ?)',
   )
     .bind(canonicalHash, n, is255 ? 1 : 0, r2Key, submitter)
     .run()
 
-  return c.json({
-    id: result.meta.last_row_id,
-    canonical_hash: canonicalHash,
-    size: n,
-    satisfies_255: Boolean(is255),
+  return {
+    kind: 'ok',
     fresh: true,
+    id: result.meta.last_row_id,
+    hash: canonicalHash,
+    size: n,
+    is255: Boolean(is255),
+  }
+}
+
+app.post('/submit', async (c) => {
+  const contentType = (c.req.header('content-type') || '').split(';')[0].trim().toLowerCase()
+  if (contentType && contentType !== 'text/plain') {
+    return c.json({ error: `content-type must be text/plain, got ${contentType}` }, 415)
+  }
+  const raw = await c.req.text()
+  const submitter = (c.req.header('x-magma-submitter') || '').trim().slice(0, 256) || null
+  const result = await submitMagma(raw, submitter, c.env)
+  if (result.kind === 'parse_error') return c.json({ error: result.message }, 400)
+  if (result.kind === 'not_677') {
+    return c.json(
+      { error: 'table does not satisfy Equation 677', witness: { x: result.x, y: result.y } },
+      422,
+    )
+  }
+  if (result.kind === 'canonicalizer_error') {
+    return c.json(
+      { error: 'canonicalizer failed', status: result.status, detail: result.detail },
+      502,
+    )
+  }
+  return c.json({
+    id: result.id,
+    canonical_hash: result.hash,
+    size: result.size,
+    satisfies_255: result.is255,
+    fresh: result.fresh,
   })
+})
+
+app.post('/submit-form', async (c) => {
+  const body = await c.req.parseBody()
+  const raw = typeof body.table === 'string' ? body.table : ''
+  const submitter =
+    (typeof body.submitter === 'string' ? body.submitter : '').trim().slice(0, 256) || null
+  const result = await submitMagma(raw, submitter, c.env)
+  return c.html(submitResultPage(result))
 })
 
 app.get('/', (c) => c.html(landingPage()))
