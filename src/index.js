@@ -21,8 +21,22 @@ app.get('/', (c) =>
       </div>
     </header>
     <main>
-      <h2>Hello, world.</h2>
-      <p>Welcome to the Equation 677 Database.</p>
+      <section class="question">
+        <p class="lede">Can we find a finite magma <em>M</em> that satisfies</p>
+        <div class="eq-line">
+          <span class="eq">&forall; x y : M, &nbsp; x = y &#9671; (x &#9671; ((y &#9671; x) &#9671; y))</span>
+          <span class="eq-label">(<a href="https://teorth.github.io/equational_theories/implications/?677">Equation 677</a>)</span>
+        </div>
+        <p class="lede">but does <strong>not</strong> satisfy</p>
+        <div class="eq-line">
+          <span class="eq">&forall; x : M, &nbsp; x = ((x &#9671; x) &#9671; x) &#9671; x &thinsp;?</span>
+          <span class="eq-label">(<a href="https://teorth.github.io/equational_theories/implications/?255">Equation 255</a>)</span>
+        </div>
+      </section>
+      <ul>
+        <li><a href="https://github.com/memoryleak47/eq677">github.com/memoryleak47/eq677</a></li>
+        <li><a href="https://teorth.github.io/equational_theories/">Equational Theories Project</a></li>
+      </ul>
     </main>
     <footer><a href="https://icarm.io">icarm.io</a></footer>
   </body>

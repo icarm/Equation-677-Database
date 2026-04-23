@@ -68,6 +68,55 @@ main p {
   font-size: 1.05rem;
 }
 
+.question {
+  margin: 0 0 2.5rem;
+  padding: 1.75rem 2rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 4px;
+}
+
+.question .lede {
+  margin: 0;
+  color: var(--fg);
+  font-size: 1.15rem;
+}
+
+.question .eq-line {
+  position: relative;
+  text-align: center;
+  margin: 0.8rem 0 1.2rem;
+}
+
+.question .eq-line:last-child {
+  margin-bottom: 0;
+}
+
+.question .eq {
+  font-family: "Cambria Math", Cambria, Georgia, serif;
+  font-size: 1.25rem;
+  color: var(--fg);
+}
+
+.question .eq-label {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.question .eq-label a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.question .eq-label a:hover {
+  text-decoration: underline;
+}
+
 footer {
   max-width: 900px;
   margin: 0 auto;
