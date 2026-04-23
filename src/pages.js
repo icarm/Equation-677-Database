@@ -44,7 +44,8 @@ export function landingPage(sampleHashes = []) {
     ? `
       <div class="landing-samples">
         ${samples}
-      </div>`
+      </div>
+      <p class="landing-samples-caption">(random magmas from the database)</p>`
     : ''
   const inner = `
       <section class="question">
