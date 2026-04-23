@@ -22,8 +22,8 @@ migrations_dir = "migrations"
 
 [[containers]]
 class_name = "Canonicalizer"
-# Built by .github/workflows/container.yml and pushed to GHCR.
-image = "ghcr.io/icarm/eq677-canonicalizer:latest"
+# Built and pushed by .github/workflows/container.yml into the CF managed registry.
+image = "registry.cloudflare.com/641ee17fdc075e1c2f3b2cfc7ffdea81/eq677-canonicalizer:latest"
 max_instances = 5
 
 [[durable_objects.bindings]]
