@@ -1,8 +1,18 @@
 import { Hono } from 'hono'
 import { getContainer } from '@cloudflare/containers'
 import { parseText, satisfies677, sha256Hex } from './magma.js'
+import { magmaToPng, parseCanonicalText } from './png.js'
+import {
+  landingPage,
+  browsePage,
+  sizePage,
+  magmaPage,
+  notFoundPage,
+} from './pages.js'
 
 export { Canonicalizer } from './canonicalizer.js'
+
+const HASH_RE = /^[0-9a-f]{64}$/
 
 const app = new Hono()
 
@@ -20,10 +30,7 @@ app.post('/submit', async (c) => {
   const check = satisfies677(table)
   if (!check.ok) {
     return c.json(
-      {
-        error: 'table does not satisfy Equation 677',
-        witness: { x: check.x, y: check.y },
-      },
+      { error: 'table does not satisfy Equation 677', witness: { x: check.x, y: check.y } },
       422,
     )
   }
@@ -36,10 +43,7 @@ app.post('/submit', async (c) => {
   })
   if (!canonResp.ok) {
     const detail = await canonResp.text()
-    return c.json(
-      { error: 'canonicalizer failed', status: canonResp.status, detail },
-      502,
-    )
+    return c.json({ error: 'canonicalizer failed', status: canonResp.status, detail }, 502)
   }
   const { canonical, is255 } = await canonResp.json()
   const canonicalHash = await sha256Hex(canonical)
@@ -78,46 +82,86 @@ app.post('/submit', async (c) => {
   })
 })
 
-app.get('/', (c) =>
-  c.html(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Equation 677 Database</title>
-    <link rel="stylesheet" href="/style.css" />
-  </head>
-  <body>
-    <header>
-      <div class="inner">
-        <h1>Equation 677 Database</h1>
-        <nav>
-          <a href="/">Home</a>
-        </nav>
-      </div>
-    </header>
-    <main>
-      <section class="question">
-        <p class="lede">Can we find a finite magma <em>M</em> that satisfies</p>
-        <div class="eq-line">
-          <span class="eq">&forall; x y : M, &nbsp; x = y &#9671; (x &#9671; ((y &#9671; x) &#9671; y))</span>
-          <span class="eq-label">(<a href="https://teorth.github.io/equational_theories/implications/?677">Equation 677</a>)</span>
-        </div>
-        <p class="lede">but does <strong>not</strong> satisfy</p>
-        <div class="eq-line">
-          <span class="eq">&forall; x : M, &nbsp; x = ((x &#9671; x) &#9671; x) &#9671; x &thinsp;?</span>
-          <span class="eq-label">(<a href="https://teorth.github.io/equational_theories/implications/?255">Equation 255</a>)</span>
-        </div>
-      </section>
-      <ul>
-        <li><a href="https://github.com/memoryleak47/eq677">github.com/memoryleak47/eq677</a></li>
-        <li><a href="https://teorth.github.io/equational_theories/">Equational Theories Project</a></li>
-      </ul>
-    </main>
-    <footer><a href="https://icarm.io">icarm.io</a></footer>
-  </body>
-</html>
-`),
-)
+app.get('/', (c) => c.html(landingPage()))
+
+app.get('/browse', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    'SELECT size, COUNT(*) AS count FROM magmas GROUP BY size ORDER BY size',
+  ).all()
+  return c.html(browsePage(results))
+})
+
+app.get('/size/:n', async (c) => {
+  const n = Number(c.req.param('n'))
+  if (!Number.isInteger(n) || n < 1) {
+    return c.html(notFoundPage(`Bad size: ${c.req.param('n')}`), 404)
+  }
+  const { results } = await c.env.DB.prepare(
+    'SELECT canonical_hash FROM magmas WHERE size = ? ORDER BY id',
+  )
+    .bind(n)
+    .all()
+  if (results.length === 0) {
+    return c.html(notFoundPage(`No magmas of size ${n}.`), 404)
+  }
+  return c.html(sizePage(n, results.map((r) => r.canonical_hash)))
+})
+
+app.get('/magma/:hash', async (c) => {
+  const hash = c.req.param('hash')
+  if (!HASH_RE.test(hash)) {
+    return c.html(notFoundPage('Malformed hash.'), 404)
+  }
+  const row = await c.env.DB.prepare(
+    'SELECT id, canonical_hash, size, satisfies_255, r2_key, submitted_at, submitted_by FROM magmas WHERE canonical_hash = ?',
+  )
+    .bind(hash)
+    .first()
+  if (!row) {
+    return c.html(notFoundPage('No such magma.'), 404)
+  }
+  return c.html(magmaPage(row))
+})
+
+app.get('/magma/:hash/image.png', async (c) => {
+  const hash = c.req.param('hash')
+  if (!HASH_RE.test(hash)) return c.notFound()
+  const row = await c.env.DB.prepare(
+    'SELECT r2_key FROM magmas WHERE canonical_hash = ?',
+  )
+    .bind(hash)
+    .first()
+  if (!row) return c.notFound()
+  const obj = await c.env.BUCKET.get(row.r2_key)
+  if (!obj) return c.notFound()
+  const text = await obj.text()
+  const table = parseCanonicalText(text)
+  const png = await magmaToPng(table)
+  return new Response(png, {
+    headers: {
+      'content-type': 'image/png',
+      'cache-control': 'public, max-age=31536000, immutable',
+    },
+  })
+})
+
+app.get('/magma/:hash/table.txt', async (c) => {
+  const hash = c.req.param('hash')
+  if (!HASH_RE.test(hash)) return c.notFound()
+  const row = await c.env.DB.prepare(
+    'SELECT r2_key FROM magmas WHERE canonical_hash = ?',
+  )
+    .bind(hash)
+    .first()
+  if (!row) return c.notFound()
+  const obj = await c.env.BUCKET.get(row.r2_key)
+  if (!obj) return c.notFound()
+  return new Response(obj.body, {
+    headers: {
+      'content-type': 'text/plain; charset=utf-8',
+      'cache-control': 'public, max-age=31536000, immutable',
+    },
+  })
+})
 
 export default app
