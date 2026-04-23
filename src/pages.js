@@ -64,11 +64,25 @@ export function browsePage(sizes) {
     .join('\n      ')
   const inner = `
       <h2>Browse the database</h2>
-      <p>${total} canonical magma${total === 1 ? '' : 's'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}.</p>
+      <p>${total} canonical magma${total === 1 ? '' : 's'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/all">See all &rarr;</a></p>
       <ul class="size-list">
       ${rows}
       </ul>`
   return layout('Browse — Equation 677 Database', inner)
+}
+
+export function allPage(hashes) {
+  const thumbs = hashes
+    .map(
+      (h) =>
+        `<a class="thumb" href="/magma/${h}"><img src="/magma/${h}/image.png" width="96" height="96" alt="" loading="lazy" /></a>`,
+    )
+    .join('\n      ')
+  const inner = `
+      <div class="thumb-grid">
+      ${thumbs}
+      </div>`
+  return layout('All — Equation 677 Database', inner)
 }
 
 export function sizePage(n, hashes) {

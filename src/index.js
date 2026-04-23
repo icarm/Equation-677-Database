@@ -5,6 +5,7 @@ import { magmaToPng, parseCanonicalText } from './png.js'
 import {
   landingPage,
   browsePage,
+  allPage,
   sizePage,
   magmaPage,
   notFoundPage,
@@ -89,6 +90,13 @@ app.get('/browse', async (c) => {
     'SELECT size, COUNT(*) AS count FROM magmas GROUP BY size ORDER BY size',
   ).all()
   return c.html(browsePage(results))
+})
+
+app.get('/all', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    'SELECT canonical_hash FROM magmas ORDER BY size, id',
+  ).all()
+  return c.html(allPage(results.map((r) => r.canonical_hash)))
 })
 
 app.get('/size/:n', async (c) => {
