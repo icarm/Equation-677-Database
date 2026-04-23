@@ -8,6 +8,7 @@ RUN apt-get update \
          cmake \
          libclang-dev \
          clang \
+         libz3-dev \
          python3 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -30,7 +31,7 @@ RUN touch canonicalize-server/src/main.rs eq677/src/lib.rs eq677/src/main.rs \
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates libz3-4 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --uid 1000 --home-dir /nonexistent --shell /usr/sbin/nologin canon
 
