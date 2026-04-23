@@ -23,7 +23,8 @@ migrations_dir = "migrations"
 [[containers]]
 class_name = "Canonicalizer"
 # Built and pushed by .github/workflows/container.yml into the CF managed registry.
-image = "registry.cloudflare.com/641ee17fdc075e1c2f3b2cfc7ffdea81/eq677-canonicalizer:latest"
+# Bump this to the new sha after each container change (GHA pushes sha-<commit>).
+image = "registry.cloudflare.com/641ee17fdc075e1c2f3b2cfc7ffdea81/eq677-canonicalizer:sha-f00791e0ab17d8b859827134e75ab5115abb8008"
 max_instances = 5
 
 [[durable_objects.bindings]]
