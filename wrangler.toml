@@ -1,3 +1,8 @@
 name = "equation-677-database"
 main = "src/index.js"
+account_id = "641ee17fdc075e1c2f3b2cfc7ffdea81"
 compatibility_date = "2026-04-23"
+
+routes = [
+  { pattern = "eq677.icarm.cloud", custom_domain = true }
+]
