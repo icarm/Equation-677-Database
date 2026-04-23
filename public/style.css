@@ -268,6 +268,21 @@ footer {
   }
 }
 
+.browse-cta {
+  margin: 1.75rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.browse-cta a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.browse-cta a:hover {
+  text-decoration: underline;
+}
+
 .submit {
   margin-top: 3rem;
   padding-top: 1.75rem;

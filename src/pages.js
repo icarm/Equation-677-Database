@@ -49,7 +49,7 @@ export function landingPage() {
       </section>
       <p>This site collects finite magmas that satisfy Equation 677. So far, every known example also satisfies Equation 255 &mdash; finding one that does <em>not</em> (or proving none exists) is the main open question remaining from the <a href="https://teorth.github.io/equational_theories/">Equational Theories Project</a>.</p>
       <p>The canonicalization and database are based on <a href="https://github.com/memoryleak47/eq677">memoryleak47/eq677</a>.</p>
-      <p><a href="/browse">Browse the database &rarr;</a></p>
+      <p class="browse-cta"><a href="/browse">Browse the database &rarr;</a></p>
       <section class="submit">
         <h2>Submit a candidate magma</h2>
         <p class="submit-help">Paste a Cayley table: <em>n</em> rows, each with <em>n</em> non-negative integers &lt; <em>n</em>, whitespace- or comma-separated.</p>
