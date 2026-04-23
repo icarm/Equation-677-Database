@@ -18,3 +18,18 @@ bucket_name = "icarm-eq677"
 binding = "DB"
 database_name = "eq677"
 database_id = "ec51881d-d094-41b9-b5ac-ed671f85b268"
+migrations_dir = "migrations"
+
+[[containers]]
+class_name = "Canonicalizer"
+# Built by .github/workflows/container.yml and pushed to GHCR.
+image = "ghcr.io/icarm/eq677-canonicalizer:latest"
+max_instances = 5
+
+[[durable_objects.bindings]]
+name = "CANONICALIZER"
+class_name = "Canonicalizer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Canonicalizer"]

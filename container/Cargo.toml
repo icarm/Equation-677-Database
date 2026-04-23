@@ -1,0 +1,7 @@
+[workspace]
+members = ["eq677", "canonicalize-server"]
+resolver = "2"
+
+[profile.release]
+debug = true
+lto = "thin"
