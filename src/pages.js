@@ -119,7 +119,7 @@ export function sizePage(n, hashes) {
     )
     .join('\n      ')
   const inner = `
-      <p><a href="/browse">&larr; browse</a></p>
+      <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/browse">&larr; by size</a></p>
       <h2>Magmas of size ${n}</h2>
       <p>${hashes.length} canonical form${hashes.length === 1 ? '' : 's'}.</p>
       <div class="thumb-grid">
