@@ -92,6 +92,11 @@ main p {
   font-size: 1.15rem;
 }
 
+.question .lede em {
+  font-family: "Cambria Math", Cambria, Georgia, serif;
+  font-size: 1.05em;
+}
+
 .question .eq-line {
   position: relative;
   text-align: center;
