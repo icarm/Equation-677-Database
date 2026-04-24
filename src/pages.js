@@ -88,7 +88,7 @@ export function bySizePage(sizes) {
     .join('\n      ')
   const inner = `
       <h2>By size</h2>
-      <p>${total} canonical magma${total === 1 ? '' : 's'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/all">See all &rarr;</a></p>
+      <p>${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/all">See all &rarr;</a></p>
       <ul class="size-list">
       ${rows}
       </ul>`
@@ -121,7 +121,7 @@ export function sizePage(n, hashes) {
   const inner = `
       <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/by-size">&larr; by size</a></p>
       <h2>Magmas of size ${n}</h2>
-      <p>${hashes.length} canonical form${hashes.length === 1 ? '' : 's'}.</p>
+      <p>${hashes.length} isomorphism class${hashes.length === 1 ? '' : 'es'}.</p>
       <div class="thumb-grid">
       ${thumbs}
       </div>`
@@ -143,7 +143,7 @@ export function magmaPage(row) {
       <dl class="magma-meta">
         <dt>Size</dt>
         <dd>${row.size}</dd>
-        <dt>Canonical hash</dt>
+        <dt>Isomorphism class hash</dt>
         <dd><code>${escapeHtml(hash)}</code></dd>
         <dt>Satisfies Equation 255</dt>
         <dd>${row.satisfies_255 ? 'yes' : 'no'}</dd>
@@ -177,12 +177,12 @@ export function submitResultPage(result) {
   } else {
     const freshLine = result.fresh
       ? '<p>This is a <strong>new</strong> entry in the database.</p>'
-      : '<p>This canonical form was <strong>already in the database</strong>.</p>'
+      : '<p>This isomorphism class was <strong>already in the database</strong>.</p>'
     body = `
         <p><strong>Accepted.</strong> The table satisfies Equation 677.</p>
         <p>Satisfies Equation 255: <strong>${result.is255 ? 'yes' : 'no'}</strong>${result.is255 ? '' : ' &mdash; this would resolve the open problem!'}</p>
         ${freshLine}
-        <p><a href="/magma/${result.hash}">View the canonical form &rarr;</a></p>`
+        <p><a href="/magma/${result.hash}">View the isomorphism class &rarr;</a></p>`
     status = 'accepted'
   }
   const inner = `
