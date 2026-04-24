@@ -4,7 +4,7 @@ import { parseText, satisfies677, sha256Hex } from './magma.js'
 import { magmaToPng, parseCanonicalText } from './png.js'
 import {
   landingPage,
-  browsePage,
+  bySizePage,
   allPage,
   sizePage,
   magmaPage,
@@ -121,11 +121,11 @@ app.get('/', async (c) => {
   return c.html(landingPage(results))
 })
 
-app.get('/browse', async (c) => {
+app.get('/by-size', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT size, COUNT(*) AS count FROM magmas GROUP BY size ORDER BY size',
   ).all()
-  return c.html(browsePage(results))
+  return c.html(bySizePage(results))
 })
 
 app.get('/all', async (c) => {

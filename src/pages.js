@@ -22,7 +22,7 @@ function layout(title, bodyInner) {
       <div class="inner">
         <h1><a href="/">Equation 677 Database</a></h1>
         <nav>
-          <a href="/browse">Browse</a>
+          <a href="/by-size">By size</a>
         </nav>
       </div>
     </header>
@@ -63,7 +63,7 @@ export function landingPage(samples = []) {
       </section>
       <p>This site collects finite magmas that satisfy <a href="https://teorth.github.io/equational_theories/implications/?677">Equation 677</a>. So far, every known example also satisfies Equation 255 &mdash; finding one that does <em>not</em> (or proving none exists) is the main open question remaining from the <a href="https://teorth.github.io/equational_theories/">Equational Theories Project</a>.</p>
       <p>The canonicalization and database are based on <a href="https://github.com/memoryleak47/eq677">memoryleak47/eq677</a>.</p>
-      <p class="browse-cta"><a href="/browse">Browse the database &rarr;</a></p>
+      <p class="browse-cta"><a href="/by-size">Browse the database &rarr;</a></p>
       ${sampleBlock}
       <section class="submit">
         <h2>Submit a candidate magma</h2>
@@ -79,7 +79,7 @@ export function landingPage(samples = []) {
   return layout('Equation 677 Database', inner)
 }
 
-export function browsePage(sizes) {
+export function bySizePage(sizes) {
   const total = sizes.reduce((acc, s) => acc + s.count, 0)
   const rows = sizes
     .map(
@@ -87,12 +87,12 @@ export function browsePage(sizes) {
     )
     .join('\n      ')
   const inner = `
-      <h2>Browse the database</h2>
+      <h2>By size</h2>
       <p>${total} canonical magma${total === 1 ? '' : 's'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/all">See all &rarr;</a></p>
       <ul class="size-list">
       ${rows}
       </ul>`
-  return layout('Browse — Equation 677 Database', inner)
+  return layout('By size — Equation 677 Database', inner)
 }
 
 export function allPage(items) {
@@ -104,7 +104,7 @@ export function allPage(items) {
     })
     .join('\n      ')
   const inner = `
-      <p><a href="/browse">&larr; by size</a></p>
+      <p><a href="/by-size">&larr; by size</a></p>
       <div class="thumb-grid">
       ${thumbs}
       </div>`
@@ -119,7 +119,7 @@ export function sizePage(n, hashes) {
     )
     .join('\n      ')
   const inner = `
-      <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/browse">&larr; by size</a></p>
+      <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/by-size">&larr; by size</a></p>
       <h2>Magmas of size ${n}</h2>
       <p>${hashes.length} canonical form${hashes.length === 1 ? '' : 's'}.</p>
       <div class="thumb-grid">
@@ -135,7 +135,7 @@ export function magmaPage(row) {
     ? `<dd>${escapeHtml(row.submitted_by)}</dd>`
     : `<dd class="muted">&mdash;</dd>`
   const inner = `
-      <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/browse">&larr; by size</a> &nbsp;&middot;&nbsp; <a href="/size/${row.size}">&larr; size ${row.size}</a></p>
+      <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/by-size">&larr; by size</a> &nbsp;&middot;&nbsp; <a href="/size/${row.size}">&larr; size ${row.size}</a></p>
       <h2>Magma <code>${escapeHtml(short)}&hellip;</code></h2>
       <div class="magma-image-wrap">
         <img class="magma-image" src="/magma/${hash}/image.png" alt="magma ${escapeHtml(short)}" />
