@@ -130,9 +130,9 @@ app.get('/browse', async (c) => {
 
 app.get('/all', async (c) => {
   const { results } = await c.env.DB.prepare(
-    'SELECT canonical_hash FROM magmas ORDER BY size, id',
+    'SELECT canonical_hash, size FROM magmas ORDER BY size, id',
   ).all()
-  return c.html(allPage(results.map((r) => r.canonical_hash)))
+  return c.html(allPage(results))
 })
 
 app.get('/size/:n', async (c) => {

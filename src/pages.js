@@ -95,12 +95,13 @@ export function browsePage(sizes) {
   return layout('Browse — Equation 677 Database', inner)
 }
 
-export function allPage(hashes) {
-  const thumbs = hashes
-    .map(
-      (h) =>
-        `<a class="thumb" href="/magma/${h}"><img src="/magma/${h}/image.png" width="96" height="96" alt="" loading="lazy" /></a>`,
-    )
+export function allPage(items) {
+  const thumbs = items
+    .map((s) => {
+      const short = s.canonical_hash.slice(0, 8)
+      const title = `magma ${short} of size ${s.size}`
+      return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="/magma/${s.canonical_hash}/image.png" width="96" height="96" alt="${escapeHtml(title)}" loading="lazy" /></a>`
+    })
     .join('\n      ')
   const inner = `
       <div class="thumb-grid">
@@ -133,7 +134,7 @@ export function magmaPage(row) {
     ? `<dd>${escapeHtml(row.submitted_by)}</dd>`
     : `<dd class="muted">&mdash;</dd>`
   const inner = `
-      <p><a href="/browse">&larr; browse</a> &nbsp;&middot;&nbsp; <a href="/size/${row.size}">size ${row.size}</a></p>
+      <p><a href="/browse">&larr; browse</a> &nbsp;&middot;&nbsp; <a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/size/${row.size}">&larr; size ${row.size}</a></p>
       <h2>Magma <code>${escapeHtml(short)}&hellip;</code></h2>
       <div class="magma-image-wrap">
         <img class="magma-image" src="/magma/${hash}/image.png" alt="magma ${escapeHtml(short)}" />
