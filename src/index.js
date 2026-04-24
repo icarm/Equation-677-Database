@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { getContainer } from '@cloudflare/containers'
 import { parseText, satisfies677, sha256Hex } from './magma.js'
 import { magmaToPng, parseCanonicalText } from './png.js'
+import { tarHeader, padding, endOfArchive } from './tar.js'
 import {
   landingPage,
   bySizePage,
@@ -189,43 +190,37 @@ app.get('/magma/:hash/image.png', async (c) => {
   })
 })
 
-app.get('/download.sh', async (c) => {
+app.get('/download.tar.gz', async (c) => {
   const { results } = await c.env.DB.prepare(
-    'SELECT size, canonical_hash FROM magmas ORDER BY size, id',
+    'SELECT size, canonical_hash, r2_key FROM magmas ORDER BY size, id',
   ).all()
-  const manifest = results.map((r) => `${r.size} ${r.canonical_hash}`).join('\n')
-  const script = `#!/usr/bin/env bash
-# Download every magma from https://eq677.icarm.cloud/ into a local directory.
-# Usage: ./eq677-download.sh [dest]   (default: ./magmas)
-set -eu
-HOST="https://eq677-magmas.icarm.cloud"
-DEST="\${1:-magmas}"
-mkdir -p "$DEST"
-
-count=0
-total=${results.length}
-while IFS=' ' read -r size hash; do
-  [ -z "$size" ] && continue
-  count=$((count + 1))
-  mkdir -p "$DEST/$size"
-  out="$DEST/$size/$hash.txt"
-  if [ -s "$out" ]; then
-    printf '[%d/%d] skip %s\\n' "$count" "$total" "$out"
-    continue
-  fi
-  printf '[%d/%d] get  %s\\n' "$count" "$total" "$out"
-  curl -fsSL -o "$out" "$HOST/magmas/$size/$hash.txt"
-done <<'MAGMAS'
-${manifest}
-MAGMAS
-
-echo "Done: $count files in $DEST"
-`
-  return new Response(script, {
+  const bucket = c.env.BUCKET
+  const tar = new ReadableStream({
+    async start(controller) {
+      try {
+        for (const row of results) {
+          const obj = await bucket.get(row.r2_key)
+          if (!obj) continue
+          const body = new Uint8Array(await obj.arrayBuffer())
+          const name = `magmas/${row.size}/${row.canonical_hash}.txt`
+          controller.enqueue(tarHeader(name, body.length))
+          controller.enqueue(body)
+          const pad = padding(body.length)
+          if (pad.length > 0) controller.enqueue(pad)
+        }
+        controller.enqueue(endOfArchive())
+        controller.close()
+      } catch (e) {
+        controller.error(e)
+      }
+    },
+  })
+  const gz = tar.pipeThrough(new CompressionStream('gzip'))
+  return new Response(gz, {
     headers: {
-      'content-type': 'text/x-shellscript; charset=utf-8',
-      'content-disposition': 'attachment; filename="eq677-download.sh"',
-      'cache-control': 'public, max-age=60',
+      'content-type': 'application/gzip',
+      'content-disposition': 'attachment; filename="eq677-magmas.tar.gz"',
+      'cache-control': 'public, max-age=300',
     },
   })
 })
