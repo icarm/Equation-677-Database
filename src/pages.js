@@ -33,17 +33,18 @@ function layout(title, bodyInner) {
 `
 }
 
-export function landingPage(sampleHashes = []) {
-  const samples = sampleHashes
-    .map(
-      (h) =>
-        `<a class="thumb" href="/magma/${h}"><img src="/magma/${h}/image.png" width="128" height="128" alt="" loading="lazy" /></a>`,
-    )
+export function landingPage(samples = []) {
+  const thumbs = samples
+    .map((s) => {
+      const short = s.canonical_hash.slice(0, 8)
+      const title = `magma ${short} of size ${s.size}`
+      return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="/magma/${s.canonical_hash}/image.png" width="128" height="128" alt="${escapeHtml(title)}" loading="lazy" /></a>`
+    })
     .join('\n        ')
-  const sampleBlock = sampleHashes.length
+  const sampleBlock = samples.length
     ? `
       <div class="landing-samples">
-        ${samples}
+        ${thumbs}
       </div>
       <p class="landing-samples-caption">(random magmas from the database)</p>`
     : ''

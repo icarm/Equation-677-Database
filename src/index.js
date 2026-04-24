@@ -116,9 +116,9 @@ app.post('/submit-form', async (c) => {
 
 app.get('/', async (c) => {
   const { results } = await c.env.DB.prepare(
-    'SELECT canonical_hash FROM magmas ORDER BY RANDOM() LIMIT 4',
+    'SELECT canonical_hash, size FROM magmas ORDER BY RANDOM() LIMIT 4',
   ).all()
-  return c.html(landingPage(results.map((r) => r.canonical_hash)))
+  return c.html(landingPage(results))
 })
 
 app.get('/browse', async (c) => {
