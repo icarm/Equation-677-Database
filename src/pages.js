@@ -134,7 +134,7 @@ export function magmaPage(row) {
     ? `<dd>${escapeHtml(row.submitted_by)}</dd>`
     : `<dd class="muted">&mdash;</dd>`
   const inner = `
-      <p><a href="/browse">&larr; browse</a> &nbsp;&middot;&nbsp; <a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/size/${row.size}">&larr; size ${row.size}</a></p>
+      <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/browse">&larr; by size</a> &nbsp;&middot;&nbsp; <a href="/size/${row.size}">&larr; size ${row.size}</a></p>
       <h2>Magma <code>${escapeHtml(short)}&hellip;</code></h2>
       <div class="magma-image-wrap">
         <img class="magma-image" src="/magma/${hash}/image.png" alt="magma ${escapeHtml(short)}" />
