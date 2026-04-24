@@ -40,7 +40,7 @@ function layout(title, bodyInner) {
       </div>
     </header>
     <main>${bodyInner}</main>
-    <footer><a href="https://icarm.io">icarm.io</a></footer>
+    <footer><a href="https://github.com/icarm/Equation-677-Database">source</a> &nbsp;&middot;&nbsp; <a href="https://icarm.io">icarm.io</a></footer>
   </body>
 </html>
 `
