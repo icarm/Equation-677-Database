@@ -195,10 +195,13 @@ app.get('/download.tar.gz', async (c) => {
     'SELECT size, canonical_hash, r2_key FROM magmas ORDER BY size, id',
   ).all()
   const bucket = c.env.BUCKET
+  let i = 0
+  let done = false
   const tar = new ReadableStream({
-    async start(controller) {
+    async pull(controller) {
       try {
-        for (const row of results) {
+        while (i < results.length) {
+          const row = results[i++]
           const obj = await bucket.get(row.r2_key)
           if (!obj) continue
           const body = new Uint8Array(await obj.arrayBuffer())
@@ -207,9 +210,13 @@ app.get('/download.tar.gz', async (c) => {
           controller.enqueue(body)
           const pad = padding(body.length)
           if (pad.length > 0) controller.enqueue(pad)
+          return
         }
-        controller.enqueue(endOfArchive())
-        controller.close()
+        if (!done) {
+          done = true
+          controller.enqueue(endOfArchive())
+          controller.close()
+        }
       } catch (e) {
         controller.error(e)
       }
