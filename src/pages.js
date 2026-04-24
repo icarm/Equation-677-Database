@@ -8,6 +8,19 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
+function pageHead({ backLinks = [], title, subtitle }) {
+  const back = backLinks.length
+    ? `<p class="back-links">${backLinks
+        .map(([href, text]) => `<a href="${href}">&larr; ${text}</a>`)
+        .join(' &nbsp;&middot;&nbsp; ')}</p>`
+    : ''
+  const sub = subtitle ? `<p class="page-subtitle">${subtitle}</p>` : ''
+  return `
+      ${back}
+      <h2>${title}</h2>
+      ${sub}`
+}
+
 function layout(title, bodyInner) {
   return `<!doctype html>
 <html lang="en">
@@ -86,9 +99,11 @@ export function bySizePage(sizes) {
       (s) => `<li><a href="/size/${s.size}">size ${s.size}</a> <span class="count">(${s.count})</span></li>`,
     )
     .join('\n      ')
-  const inner = `
-      <h2>By size</h2>
-      <p>${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/all">See all &rarr;</a></p>
+  const head = pageHead({
+    title: 'By size',
+    subtitle: `${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/all">See all &rarr;</a>`,
+  })
+  const inner = `${head}
       <ul class="size-list">
       ${rows}
       </ul>`
@@ -103,8 +118,12 @@ export function allPage(items) {
       return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="/magma/${s.canonical_hash}/image.png" width="96" height="96" alt="${escapeHtml(title)}" loading="lazy" /></a>`
     })
     .join('\n      ')
-  const inner = `
-      <p><a href="/by-size">&larr; by size</a></p>
+  const head = pageHead({
+    backLinks: [['/by-size', 'by size']],
+    title: 'All',
+    subtitle: `${items.length} isomorphism class${items.length === 1 ? '' : 'es'}.`,
+  })
+  const inner = `${head}
       <div class="thumb-grid">
       ${thumbs}
       </div>`
@@ -113,15 +132,17 @@ export function allPage(items) {
 
 export function sizePage(n, hashes) {
   const thumbs = hashes
-    .map(
-      (h) =>
-        `<a class="thumb" href="/magma/${h}" title="${h}"><img src="/magma/${h}/image.png" width="96" height="96" alt="magma ${h.slice(0, 8)}" /></a>`,
-    )
+    .map((h) => {
+      const title = `magma ${h.slice(0, 8)} of size ${n}`
+      return `<a class="thumb" href="/magma/${h}" title="${escapeHtml(title)}"><img src="/magma/${h}/image.png" width="96" height="96" alt="${escapeHtml(title)}" /></a>`
+    })
     .join('\n      ')
-  const inner = `
-      <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/by-size">&larr; by size</a></p>
-      <h2>Magmas of size ${n}</h2>
-      <p>${hashes.length} isomorphism class${hashes.length === 1 ? '' : 'es'}.</p>
+  const head = pageHead({
+    backLinks: [['/all', 'all'], ['/by-size', 'by size']],
+    title: `Size ${n}`,
+    subtitle: `${hashes.length} isomorphism class${hashes.length === 1 ? '' : 'es'}.`,
+  })
+  const inner = `${head}
       <div class="thumb-grid">
       ${thumbs}
       </div>`
@@ -134,9 +155,15 @@ export function magmaPage(row) {
   const submitted = row.submitted_by
     ? `<dd>${escapeHtml(row.submitted_by)}</dd>`
     : `<dd class="muted">&mdash;</dd>`
-  const inner = `
-      <p><a href="/all">&larr; all</a> &nbsp;&middot;&nbsp; <a href="/by-size">&larr; by size</a> &nbsp;&middot;&nbsp; <a href="/size/${row.size}">&larr; size ${row.size}</a></p>
-      <h2>Magma <code>${escapeHtml(short)}&hellip;</code></h2>
+  const head = pageHead({
+    backLinks: [
+      ['/all', 'all'],
+      ['/by-size', 'by size'],
+      [`/size/${row.size}`, `size ${row.size}`],
+    ],
+    title: `Magma <code>${escapeHtml(short)}&hellip;</code>`,
+  })
+  const inner = `${head}
       <div class="magma-image-wrap">
         <img class="magma-image" src="/magma/${hash}/image.png" alt="magma ${escapeHtml(short)}" />
       </div>
