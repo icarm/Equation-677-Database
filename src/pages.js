@@ -104,6 +104,7 @@ export function allPage(items) {
     })
     .join('\n      ')
   const inner = `
+      <p><a href="/browse">&larr; by size</a></p>
       <div class="thumb-grid">
       ${thumbs}
       </div>`
