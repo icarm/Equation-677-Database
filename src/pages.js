@@ -8,15 +8,15 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
-function pageHead({ backLinks = [], title, subtitle }) {
-  const back = backLinks.length
-    ? `<p class="back-links">${backLinks
-        .map(([href, text]) => `<a href="${href}">&larr; ${text}</a>`)
+function pageHead({ topLinks = [], title, subtitle }) {
+  const top = topLinks.length
+    ? `<p class="page-nav">${topLinks
+        .map(([href, text]) => `<a href="${href}">${text}</a>`)
         .join(' &nbsp;&middot;&nbsp; ')}</p>`
     : ''
   const sub = subtitle ? `<p class="page-subtitle">${subtitle}</p>` : ''
   return `
-      ${back}
+      ${top}
       <h2>${title}</h2>
       ${sub}`
 }
@@ -100,8 +100,9 @@ export function bySizePage(sizes) {
     )
     .join('\n      ')
   const head = pageHead({
+    topLinks: [['/all', 'See all &rarr;']],
     title: 'By size',
-    subtitle: `${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/all">See all &rarr;</a>`,
+    subtitle: `${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}.`,
   })
   const inner = `${head}
       <ul class="size-list">
@@ -119,7 +120,7 @@ export function allPage(items) {
     })
     .join('\n      ')
   const head = pageHead({
-    backLinks: [['/by-size', 'by size']],
+    topLinks: [['/by-size', '&larr; by size']],
     title: 'All',
     subtitle: `${items.length} isomorphism class${items.length === 1 ? '' : 'es'}.`,
   })
@@ -138,7 +139,7 @@ export function sizePage(n, hashes) {
     })
     .join('\n      ')
   const head = pageHead({
-    backLinks: [['/all', 'all'], ['/by-size', 'by size']],
+    topLinks: [['/all', '&larr; all'], ['/by-size', '&larr; by size']],
     title: `Size ${n}`,
     subtitle: `${hashes.length} isomorphism class${hashes.length === 1 ? '' : 'es'}.`,
   })
@@ -156,10 +157,10 @@ export function magmaPage(row) {
     ? `<dd>${escapeHtml(row.submitted_by)}</dd>`
     : `<dd class="muted">&mdash;</dd>`
   const head = pageHead({
-    backLinks: [
-      ['/all', 'all'],
-      ['/by-size', 'by size'],
-      [`/size/${row.size}`, `size ${row.size}`],
+    topLinks: [
+      ['/all', '&larr; all'],
+      ['/by-size', '&larr; by size'],
+      [`/size/${row.size}`, `&larr; size ${row.size}`],
     ],
     title: `Magma <code>${escapeHtml(short)}&hellip;</code>`,
   })

@@ -160,18 +160,18 @@ footer {
   text-align: center;
 }
 
-.back-links {
+.page-nav {
   margin: 0 0 0.5rem;
   color: var(--muted);
   font-size: 0.95rem;
 }
 
-.back-links a {
+.page-nav a {
   color: var(--accent);
   text-decoration: none;
 }
 
-.back-links a:hover {
+.page-nav a:hover {
   text-decoration: underline;
 }
 
