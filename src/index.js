@@ -189,6 +189,47 @@ app.get('/magma/:hash/image.png', async (c) => {
   })
 })
 
+app.get('/download.sh', async (c) => {
+  const { results } = await c.env.DB.prepare(
+    'SELECT size, canonical_hash FROM magmas ORDER BY size, id',
+  ).all()
+  const manifest = results.map((r) => `${r.size} ${r.canonical_hash}`).join('\n')
+  const script = `#!/usr/bin/env bash
+# Download every magma from https://eq677.icarm.cloud/ into a local directory.
+# Usage: ./eq677-download.sh [dest]   (default: ./magmas)
+set -eu
+HOST="https://eq677-magmas.icarm.cloud"
+DEST="\${1:-magmas}"
+mkdir -p "$DEST"
+
+count=0
+total=${results.length}
+while IFS=' ' read -r size hash; do
+  [ -z "$size" ] && continue
+  count=$((count + 1))
+  mkdir -p "$DEST/$size"
+  out="$DEST/$size/$hash.txt"
+  if [ -s "$out" ]; then
+    printf '[%d/%d] skip %s\\n' "$count" "$total" "$out"
+    continue
+  fi
+  printf '[%d/%d] get  %s\\n' "$count" "$total" "$out"
+  curl -fsSL -o "$out" "$HOST/magmas/$size/$hash.txt"
+done <<'MAGMAS'
+${manifest}
+MAGMAS
+
+echo "Done: $count files in $DEST"
+`
+  return new Response(script, {
+    headers: {
+      'content-type': 'text/x-shellscript; charset=utf-8',
+      'content-disposition': 'attachment; filename="eq677-download.sh"',
+      'cache-control': 'public, max-age=60',
+    },
+  })
+})
+
 app.get('/magma/:hash/table.txt', async (c) => {
   const hash = c.req.param('hash')
   if (!HASH_RE.test(hash)) return c.notFound()
