@@ -35,7 +35,7 @@ function layout(title, bodyInner) {
       <div class="inner">
         <h1><a href="/">Equation 677 Database</a></h1>
         <nav>
-          <a href="/by-size">By size</a>
+          <a href="/all">Browse</a>
         </nav>
       </div>
     </header>
@@ -76,7 +76,7 @@ export function landingPage(samples = []) {
       </section>
       <p>This site collects finite magmas that satisfy <a href="https://teorth.github.io/equational_theories/implications/?677">Equation 677</a>. So far, every known example also satisfies Equation 255 &mdash; finding one that does <em>not</em> (or proving none exists) is the main open question remaining from the <a href="https://teorth.github.io/equational_theories/">Equational Theories Project</a>.</p>
       <p>The canonicalization and database are based on <a href="https://github.com/memoryleak47/eq677">memoryleak47/eq677</a>.</p>
-      <p class="browse-cta"><a href="/by-size">Browse the database &rarr;</a></p>
+      <p class="browse-cta"><a href="/all">Browse the database &rarr;</a></p>
       ${sampleBlock}
       <section class="submit">
         <h2>Submit a candidate magma</h2>
