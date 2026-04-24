@@ -100,7 +100,7 @@ export function bySizePage(sizes) {
     )
     .join('\n      ')
   const head = pageHead({
-    topLinks: [['/all', 'See all &rarr;']],
+    topLinks: [['/all', '&larr; all']],
     title: 'By size',
     subtitle: `${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}.`,
   })
@@ -120,7 +120,7 @@ export function allPage(items) {
     })
     .join('\n      ')
   const head = pageHead({
-    topLinks: [['/by-size', '&larr; by size']],
+    topLinks: [['/by-size', 'by size &rarr;']],
     title: 'All',
     subtitle: `${items.length} isomorphism class${items.length === 1 ? '' : 'es'}.`,
   })
