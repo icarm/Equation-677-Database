@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { getContainer } from '@cloudflare/containers'
-import { parseText, satisfies677, sha256Hex } from './magma.js'
+import { parseText, satisfies677, isRightCancellative, sha256Hex } from './magma.js'
 import { magmaToPng, parseCanonicalText } from './png.js'
 import { tarHeader, padding, endOfArchive } from './tar.js'
 import {
@@ -26,6 +26,7 @@ async function submitMagma(raw, submitter, env) {
   const n = table.length
   const check = satisfies677(table)
   if (!check.ok) return { kind: 'not_677', x: check.x, y: check.y }
+  const rightCancellative = isRightCancellative(table)
 
   const stub = getContainer(env.CANONICALIZER)
   const canonResp = await stub.fetch('http://container/canonicalize', {
@@ -41,11 +42,18 @@ async function submitMagma(raw, submitter, env) {
   const canonicalHash = await sha256Hex(canonical)
 
   const existing = await env.DB.prepare(
-    'SELECT id, satisfies_255 FROM magmas WHERE canonical_hash = ?',
+    'SELECT id, satisfies_255, right_cancellative FROM magmas WHERE canonical_hash = ?',
   )
     .bind(canonicalHash)
     .first()
   if (existing) {
+    if (existing.right_cancellative === null) {
+      await env.DB.prepare(
+        'UPDATE magmas SET right_cancellative = ? WHERE id = ?',
+      )
+        .bind(rightCancellative ? 1 : 0, existing.id)
+        .run()
+    }
     return {
       kind: 'ok',
       fresh: false,
@@ -53,6 +61,7 @@ async function submitMagma(raw, submitter, env) {
       hash: canonicalHash,
       size: n,
       is255: Boolean(existing.satisfies_255),
+      rightCancellative,
     }
   }
 
@@ -61,9 +70,9 @@ async function submitMagma(raw, submitter, env) {
     httpMetadata: { contentType: 'text/plain; charset=utf-8' },
   })
   const result = await env.DB.prepare(
-    'INSERT INTO magmas (canonical_hash, size, satisfies_255, r2_key, submitted_by) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO magmas (canonical_hash, size, satisfies_255, right_cancellative, r2_key, submitted_by) VALUES (?, ?, ?, ?, ?, ?)',
   )
-    .bind(canonicalHash, n, is255 ? 1 : 0, r2Key, submitter)
+    .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, r2Key, submitter)
     .run()
 
   return {
@@ -73,6 +82,7 @@ async function submitMagma(raw, submitter, env) {
     hash: canonicalHash,
     size: n,
     is255: Boolean(is255),
+    rightCancellative,
   }
 }
 
@@ -102,6 +112,7 @@ app.post('/submit', async (c) => {
     canonical_hash: result.hash,
     size: result.size,
     satisfies_255: result.is255,
+    right_cancellative: result.rightCancellative,
     fresh: result.fresh,
   })
 })
@@ -158,7 +169,7 @@ app.get('/magma/:hash', async (c) => {
     return c.html(notFoundPage('Malformed hash.'), 404)
   }
   const row = await c.env.DB.prepare(
-    'SELECT id, canonical_hash, size, satisfies_255, r2_key, submitted_at, submitted_by FROM magmas WHERE canonical_hash = ?',
+    'SELECT id, canonical_hash, size, satisfies_255, right_cancellative, r2_key, submitted_at, submitted_by FROM magmas WHERE canonical_hash = ?',
   )
     .bind(hash)
     .first()

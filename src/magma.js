@@ -36,6 +36,22 @@ export function parseText(text) {
   return { table }
 }
 
+// Right-cancellative: ∀ a b c. b ◇ a = c ◇ a → b = c.
+// Equivalent to: every column of the Cayley table has distinct entries.
+export function isRightCancellative(table) {
+  const n = table.length
+  const seen = new Uint8Array(n)
+  for (let j = 0; j < n; j++) {
+    seen.fill(0)
+    for (let i = 0; i < n; i++) {
+      const v = table[i][j]
+      if (seen[v]) return false
+      seen[v] = 1
+    }
+  }
+  return true
+}
+
 // eq677: ∀ x y. x = y ◇ (x ◇ ((y ◇ x) ◇ y))
 export function satisfies677(table) {
   const n = table.length
