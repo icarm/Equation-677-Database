@@ -36,6 +36,15 @@ export function parseText(text) {
   return { table }
 }
 
+// Idempotent: ∀ x. x ◇ x = x.
+export function isIdempotent(table) {
+  const n = table.length
+  for (let i = 0; i < n; i++) {
+    if (table[i][i] !== i) return false
+  }
+  return true
+}
+
 // Right-cancellative: ∀ a b c. b ◇ a = c ◇ a → b = c.
 // Equivalent to: every column of the Cayley table has distinct entries.
 export function isRightCancellative(table) {

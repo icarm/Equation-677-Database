@@ -178,6 +178,8 @@ export function magmaPage(row) {
         <dd>${row.satisfies_255 ? 'yes' : 'no'}</dd>
         <dt>Right-cancellative</dt>
         <dd>${row.right_cancellative === null || row.right_cancellative === undefined ? '<span class="muted">unknown</span>' : row.right_cancellative ? 'yes' : 'no'}</dd>
+        <dt>Idempotent</dt>
+        <dd>${row.idempotent === null || row.idempotent === undefined ? '<span class="muted">unknown</span>' : row.idempotent ? 'yes' : 'no'}</dd>
         <dt>Submitted by</dt>
         ${submitted}
         <dt>Submitted at</dt>
@@ -213,6 +215,7 @@ export function submitResultPage(result) {
         <p><strong>Accepted.</strong> The table satisfies Equation 677.</p>
         <p>Satisfies Equation 255: <strong>${result.is255 ? 'yes' : 'no'}</strong>${result.is255 ? '' : ' &mdash; this would resolve the open problem!'}</p>
         <p>Right-cancellative: <strong>${result.rightCancellative ? 'yes' : 'no'}</strong></p>
+        <p>Idempotent: <strong>${result.idempotent ? 'yes' : 'no'}</strong></p>
         ${freshLine}
         <p><a href="/magma/${result.hash}">View the isomorphism class &rarr;</a></p>`
     status = 'accepted'
