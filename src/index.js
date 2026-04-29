@@ -368,9 +368,12 @@ const BUCKET_PUBLIC_BASE = 'https://eq677-magmas.icarm.cloud'
 
 app.get('/manifest.json', async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT canonical_hash, size, satisfies_255, right_cancellative, idempotent,
-            display_reorder, r2_key, submitted_at, submitted_by
-       FROM magmas ORDER BY size, id`,
+    `SELECT m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative, m.idempotent,
+            m.display_reorder, m.r2_key, m.submitted_at, m.submitted_by,
+            cl.content AS comment
+       FROM magmas m
+       LEFT JOIN comments_log cl ON cl.id = m.current_comment_id
+       ORDER BY m.size, m.id`,
   ).all()
   const magmas = results.map((r) => ({
     canonical_hash: r.canonical_hash,
@@ -379,6 +382,7 @@ app.get('/manifest.json', async (c) => {
     right_cancellative: r.right_cancellative === null ? null : Boolean(r.right_cancellative),
     idempotent: r.idempotent === null ? null : Boolean(r.idempotent),
     display_reorder: r.display_reorder,
+    comment: r.comment ? r.comment : null,
     submitted_at: r.submitted_at,
     submitted_by: r.submitted_by,
     url: `${BUCKET_PUBLIC_BASE}/${r.r2_key}`,
