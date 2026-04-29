@@ -45,7 +45,7 @@ function commentSection(row, user) {
     : ''
   const display = hasComment
     ? `<div class="comment-body">${escapeHtml(row.comment_content)}</div>`
-    : `<p class="muted">No comment yet.</p>`
+    : `<p class="muted">No commentary yet.</p>`
   const editor = user
     ? `<details class="comment-edit">
         <summary>edit</summary>
@@ -56,7 +56,7 @@ function commentSection(row, user) {
       </details>`
     : ''
   return `<section class="comment-section">
-        <h3>Comment</h3>
+        <h3>Commentary</h3>
         ${display}
         ${meta}
         ${editor}
@@ -396,7 +396,7 @@ export function commentHistoryPage(hash, entries, user = null) {
   const short = hash.slice(0, 12)
   const head = pageHead({
     topLinks: [[`/magma/${hash}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
-    title: 'Comment history',
+    title: 'Commentary history',
     subtitle: `${entries.length} edit${entries.length === 1 ? '' : 's'}.`,
   })
   const items = entries.length
@@ -413,7 +413,7 @@ export function commentHistoryPage(hash, entries, user = null) {
     : `<li class="muted">No comments yet.</li>`
   const inner = `${head}
       <ul class="comment-history">${items}</ul>`
-  return layout(`Comment history ${short} — Equation 677 Database`, inner, user)
+  return layout(`Commentary history ${short} — Equation 677 Database`, inner, user)
 }
 
 export function apiDocsPage(user = null) {
