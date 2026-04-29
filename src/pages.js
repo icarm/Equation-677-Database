@@ -255,7 +255,11 @@ export function magmaPage(row, user = null) {
             : ''}
         </dd>
         <dt>Raw table</dt>
-        <dd><a href="/magma/${hash}/table.txt">text</a></dd>
+        <dd>
+          <a href="/magma/${hash}/table.txt">canonical order</a>
+          &middot;
+          <a href="/magma/${hash}/table.txt?reorder=${encodeURIComponent(row.display_reorder || '')}">displayed order</a>
+        </dd>
       </dl>
       ${commentSection(row, user)}`
   return layout(`Magma ${short} — Equation 677 Database`, inner, user)

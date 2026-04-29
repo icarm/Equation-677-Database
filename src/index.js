@@ -599,7 +599,24 @@ app.get('/magma/:hash/table.txt', async (c) => {
   if (!row) return c.notFound()
   const obj = await c.env.BUCKET.get(row.r2_key)
   if (!obj) return c.notFound()
-  return new Response(obj.body, {
+  const reorderQuery = c.req.query('reorder')
+  if (reorderQuery === undefined) {
+    // Canonical — stream straight through.
+    return new Response(obj.body, {
+      headers: {
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'public, max-age=31536000, immutable',
+      },
+    })
+  }
+  const text = await obj.text()
+  let table = parseCanonicalText(text)
+  if (reorderQuery !== '') {
+    const parsed = parseReorder(reorderQuery, table.length)
+    if (parsed.sigma) table = applyReorder(table, parsed.sigma)
+  }
+  const out = table.map((r) => r.join(' ')).join('\n') + '\n'
+  return new Response(out, {
     headers: {
       'content-type': 'text/plain; charset=utf-8',
       'cache-control': 'public, max-age=31536000, immutable',
