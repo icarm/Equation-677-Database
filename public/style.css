@@ -276,6 +276,7 @@ main h2 + .page-subtitle {
 
 .magma-meta dd {
   margin: 0;
+  min-width: 0;
   color: var(--muted);
 }
 
