@@ -18,8 +18,16 @@ import {
   magmaPage,
   submitResultPage,
   notFoundPage,
+  profilePage,
 } from './pages.js'
-import { loadCurrentUser, startOAuth, handleCallback, logout } from './auth.js'
+import {
+  loadCurrentUser,
+  loadUserFromToken,
+  generateApiToken,
+  startOAuth,
+  handleCallback,
+  logout,
+} from './auth.js'
 
 export { Canonicalizer } from './canonicalizer.js'
 
@@ -46,13 +54,57 @@ async function resolveHash(env, raw) {
 const app = new Hono()
 
 app.use(async (c, next) => {
-  c.set('user', await loadCurrentUser(c))
+  let user = await loadCurrentUser(c)
+  if (!user) user = await loadUserFromToken(c)
+  c.set('user', user)
   await next()
 })
 
 app.get('/auth/:provider', startOAuth)
 app.get('/auth/:provider/callback', handleCallback)
 app.post('/auth/logout', logout)
+
+async function listTokens(env, userId) {
+  const { results } = await env.DB.prepare(
+    `SELECT id, name, prefix, created_at, last_used_at, revoked_at
+       FROM api_tokens WHERE user_id = ? ORDER BY created_at DESC`,
+  )
+    .bind(userId)
+    .all()
+  return results
+}
+
+app.get('/profile', async (c) => {
+  const user = c.get('user')
+  if (!user) return c.redirect('/auth/github', 302)
+  const tokens = await listTokens(c.env, user.id)
+  return c.html(profilePage(user, tokens, null))
+})
+
+app.post('/profile/tokens', async (c) => {
+  const user = c.get('user')
+  if (!user) return c.redirect('/auth/github', 302)
+  const body = await c.req.parseBody()
+  const name = (typeof body.name === 'string' ? body.name : '').trim().slice(0, 100) || null
+  const created = await generateApiToken(c.env, user.id, name)
+  const tokens = await listTokens(c.env, user.id)
+  return c.html(profilePage(user, tokens, created))
+})
+
+app.post('/profile/tokens/:id/revoke', async (c) => {
+  const user = c.get('user')
+  if (!user) return c.redirect('/auth/github', 302)
+  const id = Number(c.req.param('id'))
+  if (Number.isInteger(id)) {
+    await c.env.DB.prepare(
+      `UPDATE api_tokens SET revoked_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND user_id = ? AND revoked_at IS NULL`,
+    )
+      .bind(id, user.id)
+      .run()
+  }
+  return c.redirect('/profile', 302)
+})
 
 async function submitMagma(raw, submitter, env) {
   const parsed = parseText(raw)
@@ -137,7 +189,11 @@ app.post('/submit', async (c) => {
     return c.json({ error: `content-type must be text/plain, got ${contentType}` }, 415)
   }
   const raw = await c.req.text()
-  const submitter = (c.req.header('x-magma-submitter') || '').trim().slice(0, 256) || null
+  const user = c.get('user')
+  const headerSubmitter = (c.req.header('x-magma-submitter') || '').trim().slice(0, 256)
+  const submitter =
+    headerSubmitter ||
+    (user ? user.display_name || user.email || `user-${user.id}` : null)
   const result = await submitMagma(raw, submitter, c.env)
   if (result.kind === 'parse_error') return c.json({ error: result.message }, 400)
   if (result.kind === 'not_677') {
@@ -166,10 +222,13 @@ app.post('/submit', async (c) => {
 app.post('/submit-form', async (c) => {
   const body = await c.req.parseBody()
   const raw = typeof body.table === 'string' ? body.table : ''
+  const user = c.get('user')
+  const formSubmitter = (typeof body.submitter === 'string' ? body.submitter : '').trim().slice(0, 256)
   const submitter =
-    (typeof body.submitter === 'string' ? body.submitter : '').trim().slice(0, 256) || null
+    formSubmitter ||
+    (user ? user.display_name || user.email || `user-${user.id}` : null)
   const result = await submitMagma(raw, submitter, c.env)
-  return c.html(submitResultPage(result, c.get('user')))
+  return c.html(submitResultPage(result, user))
 })
 
 app.get('/', async (c) => {

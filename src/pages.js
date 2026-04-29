@@ -40,7 +40,7 @@ function pageHead({ topLinks = [], title, subtitle }) {
 function authNav(user) {
   if (user) {
     const name = escapeHtml(user.display_name || user.email || 'user')
-    return `<span class="auth-user">${name}</span>
+    return `<a href="/profile" class="auth-user">${name}</a>
           <form class="auth-logout" method="post" action="/auth/logout"><button type="submit">log out</button></form>`
   }
   return `<a href="/auth/github">log in with GitHub</a>`
@@ -257,6 +257,55 @@ export function submitResultPage(result, user = null) {
       </div>
       <p><a href="/">&larr; back</a></p>`
   return layout('Submission result — Equation 677 Database', inner, user)
+}
+
+export function profilePage(user, tokens, newToken) {
+  const head = pageHead({
+    title: 'Profile',
+    subtitle: `Signed in as ${escapeHtml(user.display_name || user.email || 'user')} (via ${escapeHtml(user.provider)}).`,
+  })
+  const newTokenBlock = newToken
+    ? `<div class="new-token">
+        <p><strong>New token created.</strong> Copy it now &mdash; this is the only time it will be shown.</p>
+        <pre class="token-secret">${escapeHtml(newToken.token)}</pre>
+        <p class="muted">Use it as <code>Authorization: Bearer ${escapeHtml(newToken.token)}</code> when calling the API.</p>
+      </div>`
+    : ''
+  const tokenRows = tokens.length
+    ? tokens
+        .map((t) => {
+          const label = t.name ? escapeHtml(t.name) : '<span class="muted">(unnamed)</span>'
+          const status = t.revoked_at
+            ? `<span class="muted">revoked ${escapeHtml(t.revoked_at)}</span>`
+            : `<form method="post" action="/profile/tokens/${t.id}/revoke" class="inline-form">
+                <button type="submit" class="link-button">revoke</button>
+              </form>`
+          const lastUsed = t.last_used_at ? escapeHtml(t.last_used_at) : '<span class="muted">never</span>'
+          return `<tr>
+            <td><code>${escapeHtml(t.prefix)}&hellip;</code></td>
+            <td>${label}</td>
+            <td>${escapeHtml(t.created_at)}</td>
+            <td>${lastUsed}</td>
+            <td>${status}</td>
+          </tr>`
+        })
+        .join('\n')
+    : `<tr><td colspan="5" class="muted">No tokens yet.</td></tr>`
+  const inner = `${head}
+      ${newTokenBlock}
+      <section class="tokens">
+        <h3>API tokens</h3>
+        <p>Use a token in the <code>Authorization: Bearer &hellip;</code> header to submit magmas without logging in interactively.</p>
+        <table class="tokens-table">
+          <thead><tr><th>Prefix</th><th>Name</th><th>Created</th><th>Last used</th><th></th></tr></thead>
+          <tbody>${tokenRows}</tbody>
+        </table>
+        <form method="post" action="/profile/tokens" class="new-token-form">
+          <label>Name (optional) <input type="text" name="name" maxlength="100" placeholder="e.g. laptop CLI" /></label>
+          <button type="submit">Generate new token</button>
+        </form>
+      </section>`
+  return layout('Profile — Equation 677 Database', inner, user)
 }
 
 export function notFoundPage(message, user = null) {

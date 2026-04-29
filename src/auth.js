@@ -1,4 +1,8 @@
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
+import { sha256Hex } from './magma.js'
+
+export const TOKEN_PREFIX = 'eq677_'
+const TOKEN_RANDOM_BYTES = 20 // 40 hex chars → 160 bits
 
 const SESSION_COOKIE = 'session'
 const STATE_COOKIE = 'oauth_state'
@@ -183,6 +187,48 @@ export async function handleCallback(c) {
     path: '/',
   })
   return c.redirect('/', 302)
+}
+
+export async function loadUserFromToken(c) {
+  const auth = c.req.header('authorization') || ''
+  const m = auth.match(/^Bearer\s+(\S+)$/i)
+  if (!m) return null
+  const token = m[1]
+  if (!token.startsWith(TOKEN_PREFIX)) return null
+  const tokenHash = await sha256Hex(token)
+  const row = await c.env.DB.prepare(
+    `SELECT u.id, u.provider, u.email, u.display_name, u.avatar_url, t.id AS token_id
+       FROM api_tokens t JOIN users u ON u.id = t.user_id
+       WHERE t.token_hash = ? AND t.revoked_at IS NULL`,
+  )
+    .bind(tokenHash)
+    .first()
+  if (!row) return null
+  const tokenId = row.token_id
+  delete row.token_id
+  c.executionCtx?.waitUntil(
+    c.env.DB.prepare('UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .bind(tokenId)
+      .run(),
+  )
+  return row
+}
+
+export async function generateApiToken(env, userId, name) {
+  const a = new Uint8Array(TOKEN_RANDOM_BYTES)
+  crypto.getRandomValues(a)
+  let body = ''
+  for (const b of a) body += b.toString(16).padStart(2, '0')
+  const token = `${TOKEN_PREFIX}${body}`
+  const tokenHash = await sha256Hex(token)
+  const prefix = token.slice(0, TOKEN_PREFIX.length + 8) // e.g. 'eq677_abcdef12'
+  const ins = await env.DB.prepare(
+    `INSERT INTO api_tokens (user_id, name, token_hash, prefix)
+       VALUES (?, ?, ?, ?)`,
+  )
+    .bind(userId, name || null, tokenHash, prefix)
+    .run()
+  return { id: ins.meta.last_row_id, token, prefix }
 }
 
 export async function logout(c) {
