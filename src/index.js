@@ -253,14 +253,24 @@ app.get('/manifest.json', async (c) => {
   })
 })
 
+const REORDER_BODY_MAX = 16 * 1024 // generous: even n=1000 needs <5 KB
+
 app.post('/magma/:hash/display-reorder', async (c) => {
   const hash = c.req.param('hash')
   if (!HASH_RE.test(hash)) {
     return c.json({ error: 'malformed hash' }, 404)
   }
+  const declaredLen = Number(c.req.header('content-length'))
+  if (Number.isFinite(declaredLen) && declaredLen > REORDER_BODY_MAX) {
+    return c.json({ error: `body exceeds ${REORDER_BODY_MAX} bytes` }, 413)
+  }
+  const raw = await c.req.text()
+  if (raw.length > REORDER_BODY_MAX) {
+    return c.json({ error: `body exceeds ${REORDER_BODY_MAX} bytes` }, 413)
+  }
   let body
   try {
-    body = await c.req.json()
+    body = JSON.parse(raw)
   } catch {
     return c.json({ error: 'body must be JSON' }, 400)
   }
