@@ -408,10 +408,13 @@ export function commentHistoryPage(hash, entries, user = null) {
   return layout(`Comment history ${short} — Equation 677 Database`, inner, user)
 }
 
-export function notFoundPage(message, user = null) {
+export function notFoundPage(message, user = null, backLink = null) {
+  const link = backLink
+    ? `<a href="${backLink.href}">${backLink.label}</a>`
+    : `<a href="/">&larr; home</a>`
   const inner = `
       <h2>Not found</h2>
       <p>${escapeHtml(message || 'No such page.')}</p>
-      <p><a href="/">&larr; home</a></p>`
+      <p>${link}</p>`
   return layout('Not found — Equation 677 Database', inner, user)
 }

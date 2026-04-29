@@ -424,7 +424,13 @@ app.post('/magma/:hash/display-reorder', async (c) => {
     if (parsed.error) {
       return isJson
         ? c.json({ error: parsed.error }, 400)
-        : c.html(notFoundPage(parsed.error, user), 400)
+        : c.html(
+            notFoundPage(parsed.error, user, {
+              href: `/magma/${hash}`,
+              label: '&larr; back to magma',
+            }),
+            400,
+          )
     }
     stored = parsed.sigma.join(',')
   }
