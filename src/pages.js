@@ -197,14 +197,14 @@ export function magmaPage(row) {
         <dd>${row.right_cancellative === null || row.right_cancellative === undefined ? '<span class="muted">unknown</span>' : row.right_cancellative ? 'yes' : 'no'}</dd>
         <dt>Idempotent</dt>
         <dd>${row.idempotent === null || row.idempotent === undefined ? '<span class="muted">unknown</span>' : row.idempotent ? 'yes' : 'no'}</dd>
-        <dt>Display reorder</dt>
-        ${row.display_reorder
-          ? `<dd class="reorder"><code>${escapeHtml(row.display_reorder)}</code></dd>`
-          : `<dd><span class="muted">identity</span></dd>`}
         <dt>Submitted by</dt>
         ${submitted}
         <dt>Submitted at</dt>
         <dd>${escapeHtml(row.submitted_at)}</dd>
+        <dt>Display reorder</dt>
+        ${row.display_reorder
+          ? `<dd class="reorder"><code>${escapeHtml(row.display_reorder)}</code></dd>`
+          : `<dd><span class="muted">identity</span></dd>`}
         <dt>Raw table</dt>
         <dd><a href="/magma/${hash}/table.txt">text</a></dd>
       </dl>`
