@@ -347,18 +347,23 @@ export function reorderHistoryPage(hash, entries, user = null) {
   })
   const items = entries.length
     ? entries
-        .map(
-          (e) => `<li>
-        <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(no user)</span>'} &middot; ${escapeHtml(e.created_at)}</p>
-        ${e.display_reorder
-          ? `<div class="reorder-value-wrap"><code class="reorder-value">${escapeHtml(e.display_reorder)}</code></div>`
-          : `<p class="muted">identity</p>`}
-      </li>`,
-        )
+        .map((e) => {
+          const reorderQ = e.display_reorder ? encodeURIComponent(e.display_reorder) : ''
+          const thumb = `<img src="/magma/${hash}/image.png?reorder=${reorderQ}" width="96" height="96" alt="reorder thumbnail" loading="lazy" />`
+          return `<li class="reorder-entry">
+        <div class="reorder-entry-thumb">${thumb}</div>
+        <div class="reorder-entry-info">
+          <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(no user)</span>'} &middot; ${escapeHtml(e.created_at)}</p>
+          ${e.display_reorder
+            ? `<div class="reorder-value-wrap"><code class="reorder-value">${escapeHtml(e.display_reorder)}</code></div>`
+            : `<p class="muted">identity</p>`}
+        </div>
+      </li>`
+        })
         .join('\n')
     : `<li class="muted">No entries.</li>`
   const inner = `${head}
-      <ul class="comment-history">${items}</ul>`
+      <ul class="reorder-history">${items}</ul>`
   return layout(`Reorder history ${short} — Equation 677 Database`, inner, user)
 }
 

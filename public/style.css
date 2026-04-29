@@ -461,6 +461,31 @@ main h2 + .page-subtitle {
   min-width: 0;
 }
 
+.reorder-history {
+  list-style: none;
+  padding: 0;
+}
+
+.reorder-entry {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin: 1rem 0;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.reorder-entry-thumb img {
+  display: block;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.reorder-entry-info {
+  flex: 1;
+  min-width: 0;
+}
+
 @media (max-width: 520px) {
   .magma-meta {
     grid-template-columns: 1fr;

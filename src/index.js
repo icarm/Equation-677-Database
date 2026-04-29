@@ -312,8 +312,13 @@ app.get('/magma/:hash/image.png', async (c) => {
   if (!obj) return c.notFound()
   const text = await obj.text()
   let table = parseCanonicalText(text)
-  if (row.display_reorder) {
-    const parsed = parseReorder(row.display_reorder, table.length)
+  // ?reorder=<value> overrides the row's stored display_reorder.
+  // ?reorder= (empty) → identity. Param absent → use the row's current.
+  const reorderQuery = c.req.query('reorder')
+  const reorderToApply =
+    reorderQuery === undefined ? row.display_reorder : reorderQuery || null
+  if (reorderToApply) {
+    const parsed = parseReorder(reorderToApply, table.length)
     if (parsed.sigma) table = applyReorder(table, parsed.sigma)
   }
   const png = await magmaToPng(table)
