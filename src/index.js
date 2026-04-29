@@ -247,6 +247,7 @@ app.get('/manifest.json', async (c) => {
     {
       headers: {
         'content-type': 'application/json; charset=utf-8',
+        'content-disposition': 'attachment; filename="eq677-manifest.json"',
         'cache-control': 'public, max-age=300',
       },
   })
