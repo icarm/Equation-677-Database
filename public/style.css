@@ -473,6 +473,9 @@ main h2 + .page-subtitle {
   column-gap: 0;
   row-gap: 0;
   margin: 1rem 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .magma-meta dt {
