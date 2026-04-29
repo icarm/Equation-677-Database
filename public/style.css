@@ -629,7 +629,8 @@ main h2 + .page-subtitle {
   min-width: 0;
 }
 
-.submit-row button {
+.submit-row button,
+.submit-row .login-to-submit {
   padding: 0.5rem 1.2rem;
   background: var(--accent);
   color: #fff;
@@ -638,9 +639,12 @@ main h2 + .page-subtitle {
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
 }
 
-.submit-row button:hover {
+.submit-row button:hover,
+.submit-row .login-to-submit:hover {
   filter: brightness(1.08);
 }
 

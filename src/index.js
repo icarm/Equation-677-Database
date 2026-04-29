@@ -186,16 +186,14 @@ async function submitMagma(raw, submitter, env) {
 }
 
 app.post('/submit', async (c) => {
+  const user = c.get('user')
+  if (!user) return c.json({ error: 'authentication required' }, 401)
   const contentType = (c.req.header('content-type') || '').split(';')[0].trim().toLowerCase()
   if (contentType && contentType !== 'text/plain') {
     return c.json({ error: `content-type must be text/plain, got ${contentType}` }, 415)
   }
   const raw = await c.req.text()
-  const user = c.get('user')
-  const headerSubmitter = (c.req.header('x-magma-submitter') || '').trim().slice(0, 256)
-  const submitter =
-    headerSubmitter ||
-    (user ? user.display_name || user.email || `user-${user.id}` : null)
+  const submitter = user.display_name || user.email || `user-${user.id}`
   const result = await submitMagma(raw, submitter, c.env)
   if (result.kind === 'parse_error') return c.json({ error: result.message }, 400)
   if (result.kind === 'not_677') {
@@ -222,13 +220,11 @@ app.post('/submit', async (c) => {
 })
 
 app.post('/submit-form', async (c) => {
+  const user = c.get('user')
+  if (!user) return c.redirect('/auth/github', 302)
   const body = await c.req.parseBody()
   const raw = typeof body.table === 'string' ? body.table : ''
-  const user = c.get('user')
-  const formSubmitter = (typeof body.submitter === 'string' ? body.submitter : '').trim().slice(0, 256)
-  const submitter =
-    formSubmitter ||
-    (user ? user.display_name || user.email || `user-${user.id}` : null)
+  const submitter = user.display_name || user.email || `user-${user.id}`
   const result = await submitMagma(raw, submitter, c.env)
   return c.html(submitResultPage(result, user))
 })

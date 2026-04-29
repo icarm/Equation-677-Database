@@ -134,10 +134,11 @@ export function landingPage(samples = [], user = null) {
         <h2>Submit a candidate magma</h2>
         <p class="submit-help">Paste a Cayley table: <em>n</em> rows, each with <em>n</em> non-negative integers &lt; <em>n</em>, whitespace- or comma-separated.</p>
         <form method="post" action="/submit-form">
-          <textarea name="table" rows="10" required placeholder="0 4 3 2 1&#10;3 1 4 0 2&#10;1 0 2 4 3&#10;4 2 1 3 0&#10;2 3 0 1 4"></textarea>
+          <textarea name="table" rows="10" ${user ? 'required' : 'disabled'} placeholder="0 4 3 2 1&#10;3 1 4 0 2&#10;1 0 2 4 3&#10;4 2 1 3 0&#10;2 3 0 1 4"></textarea>
           <div class="submit-row">
-            <label>Submitter (optional) <input type="text" name="submitter" maxlength="256" placeholder="your name or handle" /></label>
-            <button type="submit">Submit</button>
+            ${user
+              ? `<button type="submit">Submit</button>`
+              : `<a class="login-to-submit" href="/auth/github">log in to submit</a>`}
           </div>
         </form>
       </section>`
