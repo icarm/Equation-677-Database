@@ -364,43 +364,68 @@ const REORDER_BODY_MAX = 16 * 1024 // generous: even n=1000 needs <5 KB
 
 app.post('/magma/:hash/display-reorder', async (c) => {
   const user = c.get('user')
-  if (!user) return c.json({ error: 'authentication required' }, 401)
+  const ct = (c.req.header('content-type') || '').toLowerCase()
+  const isJson = ct.startsWith('application/json')
+  if (!user) {
+    return isJson
+      ? c.json({ error: 'authentication required' }, 401)
+      : c.redirect('/auth/github', 302)
+  }
   const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error === 'malformed') return c.json({ error: 'malformed hash' }, 404)
-  if (resolved.error === 'not_found') return c.json({ error: 'no such magma' }, 404)
-  if (resolved.error === 'ambiguous') return c.json({ error: 'ambiguous hash prefix' }, 400)
+  if (resolved.error === 'malformed') {
+    return isJson ? c.json({ error: 'malformed hash' }, 404) : c.notFound()
+  }
+  if (resolved.error === 'not_found') {
+    return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
+  }
+  if (resolved.error === 'ambiguous') {
+    return isJson ? c.json({ error: 'ambiguous hash prefix' }, 400) : c.notFound()
+  }
   const hash = resolved.hash
   const declaredLen = Number(c.req.header('content-length'))
   if (Number.isFinite(declaredLen) && declaredLen > REORDER_BODY_MAX) {
-    return c.json({ error: `body exceeds ${REORDER_BODY_MAX} bytes` }, 413)
+    return isJson
+      ? c.json({ error: `body exceeds ${REORDER_BODY_MAX} bytes` }, 413)
+      : c.notFound()
   }
-  const raw = await c.req.text()
-  if (raw.length > REORDER_BODY_MAX) {
-    return c.json({ error: `body exceeds ${REORDER_BODY_MAX} bytes` }, 413)
-  }
-  let body
-  try {
-    body = JSON.parse(raw)
-  } catch {
-    return c.json({ error: 'body must be JSON' }, 400)
-  }
-  if (typeof body !== 'object' || body === null || !('display_reorder' in body)) {
-    return c.json({ error: 'body must be { "display_reorder": string | null }' }, 400)
-  }
-  const incoming = body.display_reorder
-  if (incoming !== null && typeof incoming !== 'string') {
-    return c.json({ error: 'display_reorder must be a string or null' }, 400)
+  let incoming // string | null
+  if (isJson) {
+    const raw = await c.req.text()
+    if (raw.length > REORDER_BODY_MAX) {
+      return c.json({ error: `body exceeds ${REORDER_BODY_MAX} bytes` }, 413)
+    }
+    let body
+    try {
+      body = JSON.parse(raw)
+    } catch {
+      return c.json({ error: 'body must be JSON' }, 400)
+    }
+    if (typeof body !== 'object' || body === null || !('display_reorder' in body)) {
+      return c.json({ error: 'body must be { "display_reorder": string | null }' }, 400)
+    }
+    incoming = body.display_reorder
+    if (incoming !== null && typeof incoming !== 'string') {
+      return c.json({ error: 'display_reorder must be a string or null' }, 400)
+    }
+  } else {
+    const body = await c.req.parseBody()
+    const v = typeof body.display_reorder === 'string' ? body.display_reorder : ''
+    incoming = v.length > 0 ? v : null
   }
   const row = await c.env.DB.prepare(
     'SELECT id, size FROM magmas WHERE canonical_hash = ?',
   )
     .bind(hash)
     .first()
-  if (!row) return c.json({ error: 'no such magma' }, 404)
+  if (!row) return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
   let stored = null
   if (incoming !== null) {
     const parsed = parseReorder(incoming, row.size)
-    if (parsed.error) return c.json({ error: parsed.error }, 400)
+    if (parsed.error) {
+      return isJson
+        ? c.json({ error: parsed.error }, 400)
+        : c.html(notFoundPage(parsed.error, user), 400)
+    }
     stored = parsed.sigma.join(',')
   }
   await c.env.DB.prepare(
@@ -408,12 +433,13 @@ app.post('/magma/:hash/display-reorder', async (c) => {
   )
     .bind(row.id, user.id, stored)
     .run()
-  await c.env.DB.prepare(
-    'UPDATE magmas SET display_reorder = ? WHERE id = ?',
-  )
+  await c.env.DB.prepare('UPDATE magmas SET display_reorder = ? WHERE id = ?')
     .bind(stored, row.id)
     .run()
-  return c.json({ canonical_hash: hash, display_reorder: stored })
+  if (isJson) {
+    return c.json({ canonical_hash: hash, display_reorder: stored })
+  }
+  return c.redirect(`/magma/${hash}/reorder-history`, 302)
 })
 
 app.get('/magma/:hash/reorder-history', async (c) => {

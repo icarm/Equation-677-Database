@@ -347,13 +347,21 @@ export function reorderHistoryPage(hash, entries, user = null) {
   })
   const items = entries.length
     ? entries
-        .map((e) => {
+        .map((e, idx) => {
           const reorderQ = e.display_reorder ? encodeURIComponent(e.display_reorder) : ''
           const thumb = `<img src="/magma/${hash}/image.png?reorder=${reorderQ}" width="96" height="96" alt="reorder thumbnail" loading="lazy" />`
+          const isCurrent = idx === 0
+          const restoreButton = user && !isCurrent
+            ? `<form method="post" action="/magma/${hash}/display-reorder" class="inline-form">
+                <input type="hidden" name="display_reorder" value="${escapeHtml(e.display_reorder || '')}" />
+                <button type="submit" class="link-button">restore</button>
+              </form>`
+            : ''
+          const currentBadge = isCurrent ? `<span class="muted">(current)</span>` : ''
           return `<li class="reorder-entry">
         <div class="reorder-entry-thumb">${thumb}</div>
         <div class="reorder-entry-info">
-          <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(no user)</span>'} &middot; ${escapeHtml(e.created_at)}</p>
+          <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(no user)</span>'} &middot; ${escapeHtml(e.created_at)} ${currentBadge} ${restoreButton}</p>
           ${e.display_reorder
             ? `<div class="reorder-value-wrap"><code class="reorder-value">${escapeHtml(e.display_reorder)}</code></div>`
             : `<p class="muted">identity</p>`}
