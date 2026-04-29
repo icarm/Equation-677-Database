@@ -8,6 +8,7 @@ import {
   parseReorder,
   applyReorder,
   sha256Hex,
+  COMMENT_MAX,
 } from './magma.js'
 import { magmaToPng, parseCanonicalText } from './png.js'
 import {
@@ -35,7 +36,6 @@ import {
 
 export { Canonicalizer } from './canonicalizer.js'
 
-const HASH_RE = /^[0-9a-f]{64}$/
 const HASH_PREFIX_RE = /^[0-9a-f]{1,64}$/
 
 // Resolve a (possibly partial) lowercase-hex hash to a unique full canonical_hash.
@@ -264,6 +264,9 @@ app.post('/submit-form', async (c) => {
   const raw = typeof body.table === 'string' ? body.table : ''
   const submitter = user.display_name || user.email || `user-${user.id}`
   const result = await submitMagma(raw, submitter, c.env)
+  if (result.kind === 'ok') {
+    return c.redirect(`/magma/${result.hash}`, 302)
+  }
   return c.html(submitResultPage(result, user))
 })
 
@@ -317,7 +320,7 @@ app.get('/magma/:hash', async (c) => {
   }
   const row = await c.env.DB.prepare(
     `SELECT m.id, m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative,
-            m.idempotent, m.display_reorder, m.r2_key, m.submitted_at, m.submitted_by,
+            m.idempotent, m.display_reorder, m.submitted_at, m.submitted_by,
             cl.id AS comment_id, cl.content AS comment_content, cl.created_at AS comment_at,
             u.display_name AS comment_author
        FROM magmas m
@@ -509,22 +512,43 @@ app.get('/magma/:hash/reorder-history', async (c) => {
   return c.html(reorderHistoryPage(resolved.hash, results, c.get('user')))
 })
 
-const COMMENT_MAX = 4096
+// Cap on the request body itself (large enough for COMMENT_MAX UTF-8 + JSON wrap).
+const COMMENT_BODY_MAX = COMMENT_MAX * 4 + 256
 
 app.post('/magma/:hash/comment', async (c) => {
   const user = c.get('user')
-  if (!user) return c.json({ error: 'authentication required' }, 401)
-  const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error === 'malformed') return c.json({ error: 'malformed hash' }, 404)
-  if (resolved.error === 'not_found') return c.json({ error: 'no such magma' }, 404)
-  if (resolved.error === 'ambiguous') return c.json({ error: 'ambiguous hash prefix' }, 400)
   const ct = (c.req.header('content-type') || '').toLowerCase()
   const isJson = ct.startsWith('application/json')
+  if (!user) {
+    return isJson
+      ? c.json({ error: 'authentication required' }, 401)
+      : c.redirect('/auth/github', 302)
+  }
+  const resolved = await resolveHash(c.env, c.req.param('hash'))
+  if (resolved.error === 'malformed') {
+    return isJson ? c.json({ error: 'malformed hash' }, 404) : c.notFound()
+  }
+  if (resolved.error === 'not_found') {
+    return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
+  }
+  if (resolved.error === 'ambiguous') {
+    return isJson ? c.json({ error: 'ambiguous hash prefix' }, 400) : c.notFound()
+  }
+  const declaredLen = Number(c.req.header('content-length'))
+  if (Number.isFinite(declaredLen) && declaredLen > COMMENT_BODY_MAX) {
+    return isJson
+      ? c.json({ error: `body exceeds ${COMMENT_BODY_MAX} bytes` }, 413)
+      : c.html(notFoundPage(`Body exceeds ${COMMENT_BODY_MAX} bytes.`, user), 413)
+  }
   let content
   if (isJson) {
+    const raw = await c.req.text()
+    if (raw.length > COMMENT_BODY_MAX) {
+      return c.json({ error: `body exceeds ${COMMENT_BODY_MAX} bytes` }, 413)
+    }
     let body
     try {
-      body = await c.req.json()
+      body = JSON.parse(raw)
     } catch {
       return c.json({ error: 'body must be JSON' }, 400)
     }

@@ -1,3 +1,5 @@
+import { COMMENT_MAX } from './magma.js'
+
 // FNV-1a 32-bit hash → 8 hex chars. Used as a cache-busting version token
 // for image URLs that depend on display_reorder. NULL/empty → '0'.
 function reorderVersion(s) {
@@ -50,7 +52,7 @@ function commentSection(row, user) {
     ? `<details class="comment-edit">
         <summary>edit</summary>
         <form method="post" action="/magma/${hash}/comment">
-          <textarea name="content" rows="6" maxlength="4096">${escapeHtml(row.comment_content || '')}</textarea>
+          <textarea name="content" rows="6" maxlength="${COMMENT_MAX}">${escapeHtml(row.comment_content || '')}</textarea>
           <div><button type="submit">save</button> <span class="muted">submit empty to clear</span></div>
         </form>
       </details>`
@@ -475,7 +477,7 @@ export function apiDocsPage(user = null) {
           <p>Replace the magma's current comment. Each call appends an entry to the comment history.</p>
           <ul>
             <li>Auth: required</li>
-            <li>Max content: 4096 characters</li>
+            <li>Max content: ${COMMENT_MAX} characters</li>
             <li>Empty content clears the comment (still logged as a clear edit)</li>
           </ul>
           <p>JSON form (<code>Content-Type: application/json</code>):</p>

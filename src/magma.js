@@ -1,4 +1,5 @@
 export const MAX_SIZE = 1000
+export const COMMENT_MAX = 4096
 
 // Parse eq677's native whitespace/comma-separated format into a 2D int array.
 // Returns { table } on success or { error } on failure.
