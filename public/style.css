@@ -490,7 +490,7 @@ main h2 + .page-subtitle {
 
 .magma-meta dt:nth-of-type(odd),
 .magma-meta dd:nth-of-type(odd) {
-  background: #f4f4f4;
+  background: #e2e2e2;
 }
 
 .magma-meta dd.muted {
