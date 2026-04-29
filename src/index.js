@@ -64,6 +64,27 @@ app.use(async (c, next) => {
   await next()
 })
 
+app.use(async (c, next) => {
+  if (c.req.method !== 'POST') return next()
+  const user = c.get('user')
+  const key = user
+    ? `user:${user.id}`
+    : `ip:${c.req.header('cf-connecting-ip') || 'unknown'}`
+  try {
+    const { success } = await c.env.POST_RATE_LIMITER.limit({ key })
+    if (!success) {
+      const ct = (c.req.header('content-type') || '').toLowerCase()
+      if (ct.startsWith('application/json')) {
+        return c.json({ error: 'rate limit exceeded' }, 429)
+      }
+      return c.html(notFoundPage('Rate limit exceeded — please slow down.', user), 429)
+    }
+  } catch {
+    // rate-limiter unavailable: fail open
+  }
+  return next()
+})
+
 app.get('/auth/:provider', startOAuth)
 app.get('/auth/:provider/callback', handleCallback)
 app.post('/auth/logout', logout)
