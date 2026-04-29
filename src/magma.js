@@ -76,6 +76,44 @@ export function satisfies677(table) {
   return { ok: true }
 }
 
+// display_reorder is stored as a comma-separated permutation σ of [0, n):
+// the k-th displayed element corresponds to canonical element σ(k).
+// Returns { sigma } on success or { error } on failure.
+export function parseReorder(str, n) {
+  if (typeof str !== 'string') return { error: 'reorder must be a string' }
+  const parts = str.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+  if (parts.length !== n) {
+    return { error: `reorder has ${parts.length} entries, expected ${n}` }
+  }
+  const sigma = new Array(n)
+  const seen = new Uint8Array(n)
+  for (let k = 0; k < n; k++) {
+    if (!/^\d+$/.test(parts[k])) return { error: `reorder entry ${k}: ${JSON.stringify(parts[k])} is not a non-negative integer` }
+    const v = Number(parts[k])
+    if (!Number.isInteger(v) || v < 0 || v >= n) return { error: `reorder entry ${k}: ${v} is not in [0, ${n})` }
+    if (seen[v]) return { error: `reorder is not a permutation: ${v} repeated` }
+    seen[v] = 1
+    sigma[k] = v
+  }
+  return { sigma }
+}
+
+// Relabel `table` by permutation σ: out[i][j] = σ⁻¹(table[σ(i)][σ(j)]).
+// Produces an isomorphic magma whose elements have been renamed via σ.
+export function applyReorder(table, sigma) {
+  const n = table.length
+  const inv = new Array(n)
+  for (let k = 0; k < n; k++) inv[sigma[k]] = k
+  const out = new Array(n)
+  for (let i = 0; i < n; i++) {
+    const row = new Array(n)
+    const src = table[sigma[i]]
+    for (let j = 0; j < n; j++) row[j] = inv[src[sigma[j]]]
+    out[i] = row
+  }
+  return out
+}
+
 export async function sha256Hex(str) {
   const buf = new TextEncoder().encode(str)
   const hash = await crypto.subtle.digest('SHA-256', buf)

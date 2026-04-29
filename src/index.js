@@ -1,6 +1,14 @@
 import { Hono } from 'hono'
 import { getContainer } from '@cloudflare/containers'
-import { parseText, satisfies677, isRightCancellative, isIdempotent, sha256Hex } from './magma.js'
+import {
+  parseText,
+  satisfies677,
+  isRightCancellative,
+  isIdempotent,
+  parseReorder,
+  applyReorder,
+  sha256Hex,
+} from './magma.js'
 import { magmaToPng, parseCanonicalText } from './png.js'
 import { tarHeader, padding, endOfArchive } from './tar.js'
 import {
@@ -139,7 +147,7 @@ app.post('/submit-form', async (c) => {
 
 app.get('/', async (c) => {
   const { results } = await c.env.DB.prepare(
-    'SELECT canonical_hash, size FROM magmas ORDER BY RANDOM() LIMIT 4',
+    'SELECT canonical_hash, size, display_reorder FROM magmas ORDER BY RANDOM() LIMIT 4',
   ).all()
   return c.html(landingPage(results))
 })
@@ -153,7 +161,7 @@ app.get('/by-size', async (c) => {
 
 app.get('/all', async (c) => {
   const { results } = await c.env.DB.prepare(
-    'SELECT canonical_hash, size FROM magmas ORDER BY size, id',
+    'SELECT canonical_hash, size, display_reorder FROM magmas ORDER BY size, id',
   ).all()
   return c.html(allPage(results))
 })
@@ -164,14 +172,14 @@ app.get('/size/:n', async (c) => {
     return c.html(notFoundPage(`Bad size: ${c.req.param('n')}`), 404)
   }
   const { results } = await c.env.DB.prepare(
-    'SELECT canonical_hash FROM magmas WHERE size = ? ORDER BY id',
+    'SELECT canonical_hash, display_reorder FROM magmas WHERE size = ? ORDER BY id',
   )
     .bind(n)
     .all()
   if (results.length === 0) {
     return c.html(notFoundPage(`No magmas of size ${n}.`), 404)
   }
-  return c.html(sizePage(n, results.map((r) => r.canonical_hash)))
+  return c.html(sizePage(n, results))
 })
 
 app.get('/magma/:hash', async (c) => {
@@ -180,7 +188,7 @@ app.get('/magma/:hash', async (c) => {
     return c.html(notFoundPage('Malformed hash.'), 404)
   }
   const row = await c.env.DB.prepare(
-    'SELECT id, canonical_hash, size, satisfies_255, right_cancellative, idempotent, r2_key, submitted_at, submitted_by FROM magmas WHERE canonical_hash = ?',
+    'SELECT id, canonical_hash, size, satisfies_255, right_cancellative, idempotent, display_reorder, r2_key, submitted_at, submitted_by FROM magmas WHERE canonical_hash = ?',
   )
     .bind(hash)
     .first()
@@ -194,7 +202,7 @@ app.get('/magma/:hash/image.png', async (c) => {
   const hash = c.req.param('hash')
   if (!HASH_RE.test(hash)) return c.notFound()
   const row = await c.env.DB.prepare(
-    'SELECT r2_key FROM magmas WHERE canonical_hash = ?',
+    'SELECT r2_key, display_reorder FROM magmas WHERE canonical_hash = ?',
   )
     .bind(hash)
     .first()
@@ -202,7 +210,11 @@ app.get('/magma/:hash/image.png', async (c) => {
   const obj = await c.env.BUCKET.get(row.r2_key)
   if (!obj) return c.notFound()
   const text = await obj.text()
-  const table = parseCanonicalText(text)
+  let table = parseCanonicalText(text)
+  if (row.display_reorder) {
+    const parsed = parseReorder(row.display_reorder, table.length)
+    if (parsed.sigma) table = applyReorder(table, parsed.sigma)
+  }
   const png = await magmaToPng(table)
   return new Response(png, {
     headers: {
@@ -252,6 +264,44 @@ app.get('/download.tar.gz', async (c) => {
       'cache-control': 'public, max-age=300',
     },
   })
+})
+
+app.post('/magma/:hash/display-reorder', async (c) => {
+  const hash = c.req.param('hash')
+  if (!HASH_RE.test(hash)) {
+    return c.json({ error: 'malformed hash' }, 404)
+  }
+  let body
+  try {
+    body = await c.req.json()
+  } catch {
+    return c.json({ error: 'body must be JSON' }, 400)
+  }
+  if (typeof body !== 'object' || body === null || !('display_reorder' in body)) {
+    return c.json({ error: 'body must be { "display_reorder": string | null }' }, 400)
+  }
+  const incoming = body.display_reorder
+  if (incoming !== null && typeof incoming !== 'string') {
+    return c.json({ error: 'display_reorder must be a string or null' }, 400)
+  }
+  const row = await c.env.DB.prepare(
+    'SELECT id, size FROM magmas WHERE canonical_hash = ?',
+  )
+    .bind(hash)
+    .first()
+  if (!row) return c.json({ error: 'no such magma' }, 404)
+  let stored = null
+  if (incoming !== null) {
+    const parsed = parseReorder(incoming, row.size)
+    if (parsed.error) return c.json({ error: parsed.error }, 400)
+    stored = parsed.sigma.join(',')
+  }
+  await c.env.DB.prepare(
+    'UPDATE magmas SET display_reorder = ? WHERE id = ?',
+  )
+    .bind(stored, row.id)
+    .run()
+  return c.json({ canonical_hash: hash, display_reorder: stored })
 })
 
 app.get('/magma/:hash/table.txt', async (c) => {

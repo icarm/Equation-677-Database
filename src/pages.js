@@ -1,3 +1,19 @@
+// FNV-1a 32-bit hash → 8 hex chars. Used as a cache-busting version token
+// for image URLs that depend on display_reorder. NULL/empty → '0'.
+function reorderVersion(s) {
+  if (s == null || s === '') return '0'
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0
+  }
+  return h.toString(16).padStart(8, '0')
+}
+
+function imageUrl(hash, displayReorder) {
+  return `/magma/${hash}/image.png?v=${reorderVersion(displayReorder)}`
+}
+
 function escapeHtml(s) {
   if (s == null) return ''
   return String(s)
@@ -52,7 +68,7 @@ export function landingPage(samples = []) {
     .map((s) => {
       const short = s.canonical_hash.slice(0, 8)
       const title = `magma ${short} of size ${s.size}`
-      return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="/magma/${s.canonical_hash}/image.png" width="128" height="128" alt="${escapeHtml(title)}" loading="lazy" /></a>`
+      return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="${imageUrl(s.canonical_hash, s.display_reorder)}" width="128" height="128" alt="${escapeHtml(title)}" loading="lazy" /></a>`
     })
     .join('\n        ')
   const sampleBlock = samples.length
@@ -117,7 +133,7 @@ export function allPage(items) {
     .map((s) => {
       const short = s.canonical_hash.slice(0, 8)
       const title = `magma ${short} of size ${s.size}`
-      return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="/magma/${s.canonical_hash}/image.png" width="96" height="96" alt="${escapeHtml(title)}" loading="lazy" /></a>`
+      return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="${imageUrl(s.canonical_hash, s.display_reorder)}" width="96" height="96" alt="${escapeHtml(title)}" loading="lazy" /></a>`
     })
     .join('\n      ')
   const head = pageHead({
@@ -132,17 +148,18 @@ export function allPage(items) {
   return layout('All — Equation 677 Database', inner)
 }
 
-export function sizePage(n, hashes) {
-  const thumbs = hashes
-    .map((h) => {
+export function sizePage(n, items) {
+  const thumbs = items
+    .map((it) => {
+      const h = it.canonical_hash
       const title = `magma ${h.slice(0, 8)} of size ${n}`
-      return `<a class="thumb" href="/magma/${h}" title="${escapeHtml(title)}"><img src="/magma/${h}/image.png" width="96" height="96" alt="${escapeHtml(title)}" /></a>`
+      return `<a class="thumb" href="/magma/${h}" title="${escapeHtml(title)}"><img src="${imageUrl(h, it.display_reorder)}" width="96" height="96" alt="${escapeHtml(title)}" /></a>`
     })
     .join('\n      ')
   const head = pageHead({
     topLinks: [['/all', '&larr; all'], ['/by-size', '&larr; by size']],
     title: `Size ${n}`,
-    subtitle: `${hashes.length} isomorphism class${hashes.length === 1 ? '' : 'es'}.`,
+    subtitle: `${items.length} isomorphism class${items.length === 1 ? '' : 'es'}.`,
   })
   const inner = `${head}
       <div class="thumb-grid">
@@ -167,7 +184,7 @@ export function magmaPage(row) {
   })
   const inner = `${head}
       <div class="magma-image-wrap">
-        <img class="magma-image" src="/magma/${hash}/image.png" alt="magma ${escapeHtml(short)}" />
+        <img class="magma-image" src="${imageUrl(hash, row.display_reorder)}" alt="magma ${escapeHtml(short)}" />
       </div>
       <dl class="magma-meta">
         <dt>Size</dt>
@@ -180,6 +197,8 @@ export function magmaPage(row) {
         <dd>${row.right_cancellative === null || row.right_cancellative === undefined ? '<span class="muted">unknown</span>' : row.right_cancellative ? 'yes' : 'no'}</dd>
         <dt>Idempotent</dt>
         <dd>${row.idempotent === null || row.idempotent === undefined ? '<span class="muted">unknown</span>' : row.idempotent ? 'yes' : 'no'}</dd>
+        <dt>Display reorder</dt>
+        <dd>${row.display_reorder ? `<code>${escapeHtml(row.display_reorder)}</code>` : '<span class="muted">identity</span>'}</dd>
         <dt>Submitted by</dt>
         ${submitted}
         <dt>Submitted at</dt>
