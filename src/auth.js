@@ -145,12 +145,12 @@ export async function handleCallback(c) {
   let userId
   if (existing) {
     userId = existing.id
+    // Refresh provider-sourced fields but preserve user-customized display_name.
     await c.env.DB.prepare(
-      `UPDATE users SET email = ?, display_name = ?, avatar_url = ?,
-                        last_login_at = CURRENT_TIMESTAMP
+      `UPDATE users SET email = ?, avatar_url = ?, last_login_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
     )
-      .bind(mapped.email, mapped.display_name, mapped.avatar_url, userId)
+      .bind(mapped.email, mapped.avatar_url, userId)
       .run()
   } else {
     const ins = await c.env.DB.prepare(
@@ -168,13 +168,19 @@ export async function handleCallback(c) {
     userId = ins.meta.last_row_id
   }
 
+  // Read fresh user row so we pick up any user-customized display_name.
+  const fresh = await c.env.DB.prepare(
+    'SELECT id, display_name, email, avatar_url FROM users WHERE id = ?',
+  )
+    .bind(userId)
+    .first()
   const sessionToken = randomHex(32)
   const sessionValue = {
-    id: userId,
+    id: fresh.id,
     provider: providerName,
-    email: mapped.email,
-    display_name: mapped.display_name,
-    avatar_url: mapped.avatar_url,
+    email: fresh.email,
+    display_name: fresh.display_name,
+    avatar_url: fresh.avatar_url,
   }
   await c.env.SESSIONS.put(sessionKey(sessionToken), JSON.stringify(sessionValue), {
     expirationTtl: SESSION_TTL_SEC,
@@ -187,6 +193,16 @@ export async function handleCallback(c) {
     path: '/',
   })
   return c.redirect('/', 302)
+}
+
+export async function updateSessionUser(c, partial) {
+  const token = getCookie(c, SESSION_COOKIE)
+  if (!token) return
+  const existing = await c.env.SESSIONS.get(sessionKey(token), 'json')
+  if (!existing) return
+  await c.env.SESSIONS.put(sessionKey(token), JSON.stringify({ ...existing, ...partial }), {
+    expirationTtl: SESSION_TTL_SEC,
+  })
 }
 
 export async function loadUserFromToken(c) {

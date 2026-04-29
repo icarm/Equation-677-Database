@@ -163,6 +163,25 @@ header nav .auth-nav a {
   flex-wrap: wrap;
 }
 
+.profile-name-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.profile-name-form input[type="text"] {
+  flex: 1 1 200px;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font: inherit;
+}
+
+.profile-name-form button {
+  cursor: pointer;
+}
+
 .comment-section {
   margin: 1.5rem 0;
 }

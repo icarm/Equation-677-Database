@@ -26,6 +26,7 @@ import {
   loadCurrentUser,
   loadUserFromToken,
   generateApiToken,
+  updateSessionUser,
   startOAuth,
   handleCallback,
   logout,
@@ -81,6 +82,19 @@ app.get('/profile', async (c) => {
   if (!user) return c.redirect('/auth/github', 302)
   const tokens = await listTokens(c.env, user.id)
   return c.html(profilePage(user, tokens, null))
+})
+
+app.post('/profile/name', async (c) => {
+  const user = c.get('user')
+  if (!user) return c.redirect('/auth/github', 302)
+  const body = await c.req.parseBody()
+  const name = (typeof body.name === 'string' ? body.name : '').trim().slice(0, 100)
+  if (name.length === 0) return c.redirect('/profile', 302)
+  await c.env.DB.prepare('UPDATE users SET display_name = ? WHERE id = ?')
+    .bind(name, user.id)
+    .run()
+  await updateSessionUser(c, { display_name: name })
+  return c.redirect('/profile', 302)
 })
 
 app.post('/profile/tokens', async (c) => {

@@ -333,6 +333,13 @@ export function profilePage(user, tokens, newToken) {
     : `<tr><td colspan="5" class="muted">No tokens yet.</td></tr>`
   const inner = `${head}
       ${newTokenBlock}
+      <section class="profile-name">
+        <h3>Display name</h3>
+        <form method="post" action="/profile/name" class="profile-name-form">
+          <input type="text" name="name" value="${escapeHtml(user.display_name || '')}" maxlength="100" required />
+          <button type="submit">save</button>
+        </form>
+      </section>
       <section class="tokens">
         <h3>API tokens</h3>
         <p>Use a token in the <code>Authorization: Bearer &hellip;</code> header to submit magmas without logging in interactively.</p>
