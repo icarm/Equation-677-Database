@@ -23,6 +23,24 @@ import {
 export { Canonicalizer } from './canonicalizer.js'
 
 const HASH_RE = /^[0-9a-f]{64}$/
+const HASH_PREFIX_RE = /^[0-9a-f]{1,64}$/
+
+// Resolve a (possibly partial) lowercase-hex hash to a unique full canonical_hash.
+// Returns { hash } on success, or { error: 'malformed' | 'not_found' | 'ambiguous' }.
+async function resolveHash(env, raw) {
+  if (typeof raw !== 'string' || !HASH_PREFIX_RE.test(raw)) {
+    return { error: 'malformed' }
+  }
+  if (raw.length === 64) return { hash: raw }
+  const { results } = await env.DB.prepare(
+    'SELECT canonical_hash FROM magmas WHERE canonical_hash LIKE ? LIMIT 2',
+  )
+    .bind(`${raw}%`)
+    .all()
+  if (results.length === 0) return { error: 'not_found' }
+  if (results.length > 1) return { error: 'ambiguous' }
+  return { hash: results[0].canonical_hash }
+}
 
 const app = new Hono()
 
@@ -182,14 +200,20 @@ app.get('/size/:n', async (c) => {
 })
 
 app.get('/magma/:hash', async (c) => {
-  const hash = c.req.param('hash')
-  if (!HASH_RE.test(hash)) {
-    return c.html(notFoundPage('Malformed hash.'), 404)
+  const raw = c.req.param('hash')
+  const resolved = await resolveHash(c.env, raw)
+  if (resolved.error === 'malformed') return c.html(notFoundPage('Malformed hash.'), 404)
+  if (resolved.error === 'not_found') return c.html(notFoundPage('No such magma.'), 404)
+  if (resolved.error === 'ambiguous') {
+    return c.html(notFoundPage(`Ambiguous hash prefix "${raw}" — matches multiple magmas.`), 400)
+  }
+  if (resolved.hash !== raw) {
+    return c.redirect(`/magma/${resolved.hash}`, 302)
   }
   const row = await c.env.DB.prepare(
     'SELECT id, canonical_hash, size, satisfies_255, right_cancellative, idempotent, display_reorder, r2_key, submitted_at, submitted_by FROM magmas WHERE canonical_hash = ?',
   )
-    .bind(hash)
+    .bind(resolved.hash)
     .first()
   if (!row) {
     return c.html(notFoundPage('No such magma.'), 404)
@@ -198,12 +222,12 @@ app.get('/magma/:hash', async (c) => {
 })
 
 app.get('/magma/:hash/image.png', async (c) => {
-  const hash = c.req.param('hash')
-  if (!HASH_RE.test(hash)) return c.notFound()
+  const resolved = await resolveHash(c.env, c.req.param('hash'))
+  if (resolved.error) return c.notFound()
   const row = await c.env.DB.prepare(
     'SELECT r2_key, display_reorder FROM magmas WHERE canonical_hash = ?',
   )
-    .bind(hash)
+    .bind(resolved.hash)
     .first()
   if (!row) return c.notFound()
   const obj = await c.env.BUCKET.get(row.r2_key)
@@ -256,10 +280,11 @@ app.get('/manifest.json', async (c) => {
 const REORDER_BODY_MAX = 16 * 1024 // generous: even n=1000 needs <5 KB
 
 app.post('/magma/:hash/display-reorder', async (c) => {
-  const hash = c.req.param('hash')
-  if (!HASH_RE.test(hash)) {
-    return c.json({ error: 'malformed hash' }, 404)
-  }
+  const resolved = await resolveHash(c.env, c.req.param('hash'))
+  if (resolved.error === 'malformed') return c.json({ error: 'malformed hash' }, 404)
+  if (resolved.error === 'not_found') return c.json({ error: 'no such magma' }, 404)
+  if (resolved.error === 'ambiguous') return c.json({ error: 'ambiguous hash prefix' }, 400)
+  const hash = resolved.hash
   const declaredLen = Number(c.req.header('content-length'))
   if (Number.isFinite(declaredLen) && declaredLen > REORDER_BODY_MAX) {
     return c.json({ error: `body exceeds ${REORDER_BODY_MAX} bytes` }, 413)
@@ -302,12 +327,12 @@ app.post('/magma/:hash/display-reorder', async (c) => {
 })
 
 app.get('/magma/:hash/table.txt', async (c) => {
-  const hash = c.req.param('hash')
-  if (!HASH_RE.test(hash)) return c.notFound()
+  const resolved = await resolveHash(c.env, c.req.param('hash'))
+  if (resolved.error) return c.notFound()
   const row = await c.env.DB.prepare(
     'SELECT r2_key FROM magmas WHERE canonical_hash = ?',
   )
-    .bind(hash)
+    .bind(resolved.hash)
     .first()
   if (!row) return c.notFound()
   const obj = await c.env.BUCKET.get(row.r2_key)
