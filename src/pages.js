@@ -237,9 +237,12 @@ export function magmaPage(row, user = null) {
         <dt>Submitted at</dt>
         <dd>${escapeHtml(row.submitted_at)}</dd>
         <dt>Display reorder</dt>
-        ${row.display_reorder
-          ? `<dd class="reorder"><code>${escapeHtml(row.display_reorder)}</code></dd>`
-          : `<dd><span class="muted">identity</span></dd>`}
+        <dd class="reorder">
+          ${row.display_reorder
+            ? `<code>${escapeHtml(row.display_reorder)}</code>`
+            : `<span class="muted">identity</span>`}
+          <span class="reorder-history-link"><a href="/magma/${hash}/reorder-history">history</a></span>
+        </dd>
         <dt>Raw table</dt>
         <dd><a href="/magma/${hash}/table.txt">text</a></dd>
       </dl>
@@ -333,6 +336,30 @@ export function profilePage(user, tokens, newToken) {
         </form>
       </section>`
   return layout('Profile — Equation 677 Database', inner, user)
+}
+
+export function reorderHistoryPage(hash, entries, user = null) {
+  const short = hash.slice(0, 12)
+  const head = pageHead({
+    topLinks: [[`/magma/${hash}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
+    title: 'Display reorder history',
+    subtitle: `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}.`,
+  })
+  const items = entries.length
+    ? entries
+        .map(
+          (e) => `<li>
+        <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(no user)</span>'} &middot; ${escapeHtml(e.created_at)}</p>
+        ${e.display_reorder
+          ? `<div class="reorder-value-wrap"><code class="reorder-value">${escapeHtml(e.display_reorder)}</code></div>`
+          : `<p class="muted">identity</p>`}
+      </li>`,
+        )
+        .join('\n')
+    : `<li class="muted">No entries.</li>`
+  const inner = `${head}
+      <ul class="comment-history">${items}</ul>`
+  return layout(`Reorder history ${short} — Equation 677 Database`, inner, user)
 }
 
 export function commentHistoryPage(hash, entries, user = null) {

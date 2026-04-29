@@ -20,6 +20,7 @@ import {
   notFoundPage,
   profilePage,
   commentHistoryPage,
+  reorderHistoryPage,
 } from './pages.js'
 import {
   loadCurrentUser,
@@ -357,7 +358,8 @@ app.get('/manifest.json', async (c) => {
 const REORDER_BODY_MAX = 16 * 1024 // generous: even n=1000 needs <5 KB
 
 app.post('/magma/:hash/display-reorder', async (c) => {
-  if (!c.get('user')) return c.json({ error: 'authentication required' }, 401)
+  const user = c.get('user')
+  if (!user) return c.json({ error: 'authentication required' }, 401)
   const resolved = await resolveHash(c.env, c.req.param('hash'))
   if (resolved.error === 'malformed') return c.json({ error: 'malformed hash' }, 404)
   if (resolved.error === 'not_found') return c.json({ error: 'no such magma' }, 404)
@@ -397,11 +399,39 @@ app.post('/magma/:hash/display-reorder', async (c) => {
     stored = parsed.sigma.join(',')
   }
   await c.env.DB.prepare(
+    'INSERT INTO display_reorder_log (magma_id, user_id, display_reorder) VALUES (?, ?, ?)',
+  )
+    .bind(row.id, user.id, stored)
+    .run()
+  await c.env.DB.prepare(
     'UPDATE magmas SET display_reorder = ? WHERE id = ?',
   )
     .bind(stored, row.id)
     .run()
   return c.json({ canonical_hash: hash, display_reorder: stored })
+})
+
+app.get('/magma/:hash/reorder-history', async (c) => {
+  const resolved = await resolveHash(c.env, c.req.param('hash'))
+  if (resolved.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
+  if (resolved.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
+  if (resolved.error === 'ambiguous') {
+    return c.html(notFoundPage(`Ambiguous hash prefix "${c.req.param('hash')}" — matches multiple magmas.`, c.get('user')), 400)
+  }
+  if (resolved.hash !== c.req.param('hash')) {
+    return c.redirect(`/magma/${resolved.hash}/reorder-history`, 302)
+  }
+  const { results } = await c.env.DB.prepare(
+    `SELECT dr.id, dr.display_reorder, dr.created_at, u.display_name AS author
+       FROM display_reorder_log dr
+       LEFT JOIN users u ON u.id = dr.user_id
+       JOIN magmas m ON m.id = dr.magma_id
+       WHERE m.canonical_hash = ?
+       ORDER BY dr.id DESC`,
+  )
+    .bind(resolved.hash)
+    .all()
+  return c.html(reorderHistoryPage(resolved.hash, results, c.get('user')))
 })
 
 const COMMENT_MAX = 4096
