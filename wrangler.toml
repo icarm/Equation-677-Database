@@ -29,9 +29,8 @@ migrations_dir = "migrations"
 binding = "SESSIONS"
 id = "3605b30e09a748d5b37b6f8990a14b16"
 
-[[unsafe.bindings]]
+[[ratelimits]]
 name = "POST_RATE_LIMITER"
-type = "ratelimit"
 namespace_id = "1"
 simple = { limit = 40, period = 10 }
 

@@ -426,11 +426,11 @@ export function apiDocsPage(user = null) {
       <div class="api-docs">
         <section>
           <h3>Authentication</h3>
-          <p>All write endpoints (POST) require authentication. Two ways:</p>
+          <p>All write endpoints (POST) require authentication by one of the following methods.</p>
           <ol>
             <li><strong>Browser session.</strong> Sign in at <a href="/auth/github">/auth/github</a>; subsequent same-origin requests carry the session cookie.</li>
             <li><strong>Bearer token.</strong> Generate one from <a href="/profile">your profile</a> while signed in. Send it on every request:
-              <pre><code>Authorization: Bearer eq677_&lt;your-token&gt;</code></pre>
+              <pre><code>Authorization: Bearer &lt;your-token&gt;</code></pre>
               Tokens are 160-bit secrets prefixed with <code>eq677_</code>. They don't expire on their own; revoke from your profile.
             </li>
           </ol>
