@@ -60,6 +60,39 @@ header nav a:hover {
   color: var(--accent);
 }
 
+header nav .auth-nav {
+  margin-left: 1rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+header nav .auth-nav a {
+  margin-left: 0.6rem;
+}
+
+.auth-user {
+  font-weight: 600;
+}
+
+.auth-logout {
+  display: inline;
+  margin-left: 0.6rem;
+}
+
+.auth-logout button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.auth-logout button:hover {
+  color: var(--accent);
+}
+
 main {
   max-width: 900px;
   margin: 0 auto;

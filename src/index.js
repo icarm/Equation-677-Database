@@ -19,6 +19,7 @@ import {
   submitResultPage,
   notFoundPage,
 } from './pages.js'
+import { loadCurrentUser, startOAuth, handleCallback, logout } from './auth.js'
 
 export { Canonicalizer } from './canonicalizer.js'
 
@@ -43,6 +44,15 @@ async function resolveHash(env, raw) {
 }
 
 const app = new Hono()
+
+app.use(async (c, next) => {
+  c.set('user', await loadCurrentUser(c))
+  await next()
+})
+
+app.get('/auth/:provider', startOAuth)
+app.get('/auth/:provider/callback', handleCallback)
+app.post('/auth/logout', logout)
 
 async function submitMagma(raw, submitter, env) {
   const parsed = parseText(raw)
@@ -159,34 +169,34 @@ app.post('/submit-form', async (c) => {
   const submitter =
     (typeof body.submitter === 'string' ? body.submitter : '').trim().slice(0, 256) || null
   const result = await submitMagma(raw, submitter, c.env)
-  return c.html(submitResultPage(result))
+  return c.html(submitResultPage(result, c.get('user')))
 })
 
 app.get('/', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT canonical_hash, size, display_reorder FROM magmas ORDER BY RANDOM() LIMIT 4',
   ).all()
-  return c.html(landingPage(results))
+  return c.html(landingPage(results, c.get('user')))
 })
 
 app.get('/by-size', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT size, COUNT(*) AS count FROM magmas GROUP BY size ORDER BY size',
   ).all()
-  return c.html(bySizePage(results))
+  return c.html(bySizePage(results, c.get('user')))
 })
 
 app.get('/all', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT canonical_hash, size, display_reorder FROM magmas ORDER BY size, id',
   ).all()
-  return c.html(allPage(results))
+  return c.html(allPage(results, c.get('user')))
 })
 
 app.get('/size/:n', async (c) => {
   const n = Number(c.req.param('n'))
   if (!Number.isInteger(n) || n < 1) {
-    return c.html(notFoundPage(`Bad size: ${c.req.param('n')}`), 404)
+    return c.html(notFoundPage(`Bad size: ${c.req.param('n')}`, c.get('user')), 404)
   }
   const { results } = await c.env.DB.prepare(
     'SELECT canonical_hash, display_reorder FROM magmas WHERE size = ? ORDER BY id',
@@ -194,18 +204,18 @@ app.get('/size/:n', async (c) => {
     .bind(n)
     .all()
   if (results.length === 0) {
-    return c.html(notFoundPage(`No magmas of size ${n}.`), 404)
+    return c.html(notFoundPage(`No magmas of size ${n}.`, c.get('user')), 404)
   }
-  return c.html(sizePage(n, results))
+  return c.html(sizePage(n, results, c.get('user')))
 })
 
 app.get('/magma/:hash', async (c) => {
   const raw = c.req.param('hash')
   const resolved = await resolveHash(c.env, raw)
-  if (resolved.error === 'malformed') return c.html(notFoundPage('Malformed hash.'), 404)
-  if (resolved.error === 'not_found') return c.html(notFoundPage('No such magma.'), 404)
+  if (resolved.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
+  if (resolved.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
   if (resolved.error === 'ambiguous') {
-    return c.html(notFoundPage(`Ambiguous hash prefix "${raw}" — matches multiple magmas.`), 400)
+    return c.html(notFoundPage(`Ambiguous hash prefix "${raw}" — matches multiple magmas.`, c.get('user')), 400)
   }
   if (resolved.hash !== raw) {
     return c.redirect(`/magma/${resolved.hash}`, 302)
@@ -216,9 +226,9 @@ app.get('/magma/:hash', async (c) => {
     .bind(resolved.hash)
     .first()
   if (!row) {
-    return c.html(notFoundPage('No such magma.'), 404)
+    return c.html(notFoundPage('No such magma.', c.get('user')), 404)
   }
-  return c.html(magmaPage(row))
+  return c.html(magmaPage(row, c.get('user')))
 })
 
 app.get('/magma/:hash/image.png', async (c) => {

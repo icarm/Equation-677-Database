@@ -37,7 +37,16 @@ function pageHead({ topLinks = [], title, subtitle }) {
       ${sub}`
 }
 
-function layout(title, bodyInner) {
+function authNav(user) {
+  if (user) {
+    const name = escapeHtml(user.display_name || user.email || 'user')
+    return `<span class="auth-user">${name}</span>
+          <form class="auth-logout" method="post" action="/auth/logout"><button type="submit">log out</button></form>`
+  }
+  return `<a href="/auth/github">log in with GitHub</a>`
+}
+
+function layout(title, bodyInner, user) {
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -53,6 +62,7 @@ function layout(title, bodyInner) {
         <h1><a href="/">Equation 677 Database</a></h1>
         <nav>
           <a href="/all">Browse</a>
+          <span class="auth-nav">${authNav(user)}</span>
         </nav>
       </div>
     </header>
@@ -63,7 +73,7 @@ function layout(title, bodyInner) {
 `
 }
 
-export function landingPage(samples = []) {
+export function landingPage(samples = [], user = null) {
   const thumbs = samples
     .map((s) => {
       const short = s.canonical_hash.slice(0, 8)
@@ -106,10 +116,10 @@ export function landingPage(samples = []) {
           </div>
         </form>
       </section>`
-  return layout('Equation 677 Database', inner)
+  return layout('Equation 677 Database', inner, user)
 }
 
-export function bySizePage(sizes) {
+export function bySizePage(sizes, user = null) {
   const total = sizes.reduce((acc, s) => acc + s.count, 0)
   const rows = sizes
     .map(
@@ -125,10 +135,10 @@ export function bySizePage(sizes) {
       <ul class="size-list">
       ${rows}
       </ul>`
-  return layout('By size — Equation 677 Database', inner)
+  return layout('By size — Equation 677 Database', inner, user)
 }
 
-export function allPage(items) {
+export function allPage(items, user = null) {
   const thumbs = items
     .map((s) => {
       const short = s.canonical_hash.slice(0, 8)
@@ -145,10 +155,10 @@ export function allPage(items) {
       <div class="thumb-grid">
       ${thumbs}
       </div>`
-  return layout('All — Equation 677 Database', inner)
+  return layout('All — Equation 677 Database', inner, user)
 }
 
-export function sizePage(n, items) {
+export function sizePage(n, items, user = null) {
   const thumbs = items
     .map((it) => {
       const h = it.canonical_hash
@@ -165,10 +175,10 @@ export function sizePage(n, items) {
       <div class="thumb-grid">
       ${thumbs}
       </div>`
-  return layout(`Size ${n} — Equation 677 Database`, inner)
+  return layout(`Size ${n} — Equation 677 Database`, inner, user)
 }
 
-export function magmaPage(row) {
+export function magmaPage(row, user = null) {
   const hash = row.canonical_hash
   const short = hash.slice(0, 12)
   const submitted = row.submitted_by
@@ -208,10 +218,10 @@ export function magmaPage(row) {
         <dt>Raw table</dt>
         <dd><a href="/magma/${hash}/table.txt">text</a></dd>
       </dl>`
-  return layout(`Magma ${short} — Equation 677 Database`, inner)
+  return layout(`Magma ${short} — Equation 677 Database`, inner, user)
 }
 
-export function submitResultPage(result) {
+export function submitResultPage(result, user = null) {
   let status, body
   if (result.kind === 'parse_error') {
     status = 'rejected'
@@ -247,13 +257,13 @@ export function submitResultPage(result) {
         ${body}
       </div>
       <p><a href="/">&larr; back</a></p>`
-  return layout('Submission result — Equation 677 Database', inner)
+  return layout('Submission result — Equation 677 Database', inner, user)
 }
 
-export function notFoundPage(message) {
+export function notFoundPage(message, user = null) {
   const inner = `
       <h2>Not found</h2>
       <p>${escapeHtml(message || 'No such page.')}</p>
       <p><a href="/">&larr; home</a></p>`
-  return layout('Not found — Equation 677 Database', inner)
+  return layout('Not found — Equation 677 Database', inner, user)
 }
