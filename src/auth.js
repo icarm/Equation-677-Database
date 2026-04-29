@@ -79,12 +79,16 @@ export async function handleCallback(c) {
   const providerName = c.req.param('provider')
   const provider = PROVIDERS[providerName]
   if (!provider) return c.notFound()
+  const error = c.req.query('error')
   const code = c.req.query('code')
   const stateParam = c.req.query('state')
   const stateCookie = getCookie(c, STATE_COOKIE)
   deleteCookie(c, STATE_COOKIE, { path: '/' })
-  if (!code || !stateParam || !stateCookie || stateParam !== stateCookie) {
-    return c.json({ error: 'invalid state' }, 400)
+  if (error || !code) {
+    return c.redirect('/', 302)
+  }
+  if (!stateParam || !stateCookie || stateParam !== stateCookie) {
+    return c.redirect('/', 302)
   }
   const clientId = c.env[provider.clientIdEnv]
   const clientSecret = c.env[provider.clientSecretEnv]
