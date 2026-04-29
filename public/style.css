@@ -137,6 +137,10 @@ header nav .auth-nav a {
   margin: 0;
 }
 
+.inline-form button {
+  cursor: pointer;
+}
+
 .link-button {
   background: none;
   border: none;
