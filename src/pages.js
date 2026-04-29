@@ -119,7 +119,7 @@ export function bySizePage(sizes) {
   const head = pageHead({
     topLinks: [['/all', '&larr; all']],
     title: 'By size',
-    subtitle: `${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/download.tar.gz">Download all (tar.gz) &darr;</a>`,
+    subtitle: `${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/manifest.json">Manifest (JSON) &darr;</a>`,
   })
   const inner = `${head}
       <ul class="size-list">
@@ -139,7 +139,7 @@ export function allPage(items) {
   const head = pageHead({
     topLinks: [['/by-size', 'by size &rarr;']],
     title: 'All',
-    subtitle: `${items.length} isomorphism class${items.length === 1 ? '' : 'es'}. <a href="/download.tar.gz">Download all (tar.gz) &darr;</a>`,
+    subtitle: `${items.length} isomorphism class${items.length === 1 ? '' : 'es'}. <a href="/manifest.json">Manifest (JSON) &darr;</a>`,
   })
   const inner = `${head}
       <div class="thumb-grid">

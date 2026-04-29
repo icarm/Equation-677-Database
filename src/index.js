@@ -10,7 +10,6 @@ import {
   sha256Hex,
 } from './magma.js'
 import { magmaToPng, parseCanonicalText } from './png.js'
-import { tarHeader, padding, endOfArchive } from './tar.js'
 import {
   landingPage,
   bySizePage,
@@ -224,45 +223,32 @@ app.get('/magma/:hash/image.png', async (c) => {
   })
 })
 
-app.get('/download.tar.gz', async (c) => {
+const BUCKET_PUBLIC_BASE = 'https://eq677-magmas.icarm.cloud'
+
+app.get('/manifest.json', async (c) => {
   const { results } = await c.env.DB.prepare(
-    'SELECT size, canonical_hash, r2_key FROM magmas ORDER BY size, id',
+    `SELECT canonical_hash, size, satisfies_255, right_cancellative, idempotent,
+            display_reorder, r2_key, submitted_at, submitted_by
+       FROM magmas ORDER BY size, id`,
   ).all()
-  const bucket = c.env.BUCKET
-  let i = 0
-  let done = false
-  const tar = new ReadableStream({
-    async pull(controller) {
-      try {
-        while (i < results.length) {
-          const row = results[i++]
-          const obj = await bucket.get(row.r2_key)
-          if (!obj) continue
-          const body = new Uint8Array(await obj.arrayBuffer())
-          const name = `magmas/${row.size}/${row.canonical_hash}.txt`
-          controller.enqueue(tarHeader(name, body.length))
-          controller.enqueue(body)
-          const pad = padding(body.length)
-          if (pad.length > 0) controller.enqueue(pad)
-          return
-        }
-        if (!done) {
-          done = true
-          controller.enqueue(endOfArchive())
-          controller.close()
-        }
-      } catch (e) {
-        controller.error(e)
-      }
-    },
-  })
-  const gz = tar.pipeThrough(new CompressionStream('gzip'))
-  return new Response(gz, {
-    headers: {
-      'content-type': 'application/gzip',
-      'content-disposition': 'attachment; filename="eq677-magmas.tar.gz"',
-      'cache-control': 'public, max-age=300',
-    },
+  const magmas = results.map((r) => ({
+    canonical_hash: r.canonical_hash,
+    size: r.size,
+    satisfies_255: r.satisfies_255 === null ? null : Boolean(r.satisfies_255),
+    right_cancellative: r.right_cancellative === null ? null : Boolean(r.right_cancellative),
+    idempotent: r.idempotent === null ? null : Boolean(r.idempotent),
+    display_reorder: r.display_reorder,
+    submitted_at: r.submitted_at,
+    submitted_by: r.submitted_by,
+    url: `${BUCKET_PUBLIC_BASE}/${r.r2_key}`,
+  }))
+  return new Response(
+    JSON.stringify({ count: magmas.length, magmas }),
+    {
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'public, max-age=300',
+      },
   })
 })
 
