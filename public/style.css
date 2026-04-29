@@ -470,20 +470,27 @@ main h2 + .page-subtitle {
 .magma-meta {
   display: grid;
   grid-template-columns: max-content 1fr;
-  column-gap: 1.25rem;
-  row-gap: 0.35rem;
+  column-gap: 0;
+  row-gap: 0;
   margin: 1rem 0;
 }
 
 .magma-meta dt {
   font-weight: 600;
   color: var(--fg);
+  padding: 0.4rem 1.25rem 0.4rem 0.5rem;
 }
 
 .magma-meta dd {
   margin: 0;
   min-width: 0;
   color: var(--muted);
+  padding: 0.4rem 0.5rem;
+}
+
+.magma-meta dt:nth-of-type(odd),
+.magma-meta dd:nth-of-type(odd) {
+  background: #f4f4f4;
 }
 
 .magma-meta dd.muted {
