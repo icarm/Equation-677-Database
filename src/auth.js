@@ -17,13 +17,38 @@ const PROVIDERS = {
     scope: 'read:user user:email',
     clientIdEnv: 'GITHUB_CLIENT_ID',
     clientSecretEnv: 'GITHUB_CLIENT_SECRET',
-    mapUser: (info) => ({
+    mapUser: async (info, accessToken) => ({
       provider_user_id: String(info.id),
-      email: info.email || null,
+      email: info.email || (await githubPrimaryEmail(accessToken)),
       display_name: info.name || info.login || null,
       avatar_url: info.avatar_url || null,
     }),
   },
+}
+
+// /user only returns `email` when the user has set it to public. For private
+// emails we fetch /user/emails (granted by the user:email scope) and pick the
+// primary verified address.
+async function githubPrimaryEmail(accessToken) {
+  try {
+    const r = await fetch('https://api.github.com/user/emails', {
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'user-agent': 'eq677-database',
+        accept: 'application/json',
+      },
+    })
+    if (!r.ok) return null
+    const emails = await r.json()
+    if (!Array.isArray(emails)) return null
+    const primary =
+      emails.find((e) => e.primary && e.verified) ||
+      emails.find((e) => e.verified) ||
+      null
+    return primary ? primary.email : null
+  } catch {
+    return null
+  }
 }
 
 function randomHex(bytes) {
@@ -132,7 +157,7 @@ export async function handleCallback(c) {
     return c.json({ error: 'user info fetch failed', detail: await userResp.text() }, 502)
   }
   const info = await userResp.json()
-  const mapped = provider.mapUser(info)
+  const mapped = await provider.mapUser(info, tokenData.access_token)
   if (!mapped.provider_user_id) {
     return c.json({ error: 'provider returned no user id' }, 502)
   }
