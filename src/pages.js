@@ -92,7 +92,7 @@ function layout(title, bodyInner, user) {
       </div>
     </header>
     <main>${bodyInner}</main>
-    <footer><a href="https://github.com/icarm/Equation-677-Database">source</a> &nbsp;&middot;&nbsp; <a href="https://icarm.io">icarm.io</a></footer>
+    <footer><a href="/api">API</a> &nbsp;&middot;&nbsp; <a href="https://github.com/icarm/Equation-677-Database">source</a> &nbsp;&middot;&nbsp; <a href="https://icarm.io">icarm.io</a></footer>
   </body>
 </html>
 `
@@ -342,7 +342,7 @@ export function profilePage(user, tokens, newToken) {
       </section>
       <section class="tokens">
         <h3>API tokens</h3>
-        <p>Use a token in the <code>Authorization: Bearer &hellip;</code> header to submit magmas without logging in interactively.</p>
+        <p>Use a token in the <code>Authorization: Bearer &hellip;</code> header to call the API without logging in interactively. See the <a href="/api">API documentation</a> for endpoint details.</p>
         <table class="tokens-table">
           <thead><tr><th>Prefix</th><th>Name</th><th>Created</th><th>Last used</th><th></th></tr></thead>
           <tbody>${tokenRows}</tbody>
@@ -414,6 +414,114 @@ export function commentHistoryPage(hash, entries, user = null) {
   const inner = `${head}
       <ul class="comment-history">${items}</ul>`
   return layout(`Comment history ${short} — Equation 677 Database`, inner, user)
+}
+
+export function apiDocsPage(user = null) {
+  const head = pageHead({
+    title: 'API',
+    subtitle: 'Programmatic access to the Equation 677 database.',
+  })
+  const inner = `${head}
+      <div class="api-docs">
+        <section>
+          <h3>Authentication</h3>
+          <p>All write endpoints (POST) require authentication. Two ways:</p>
+          <ol>
+            <li><strong>Browser session.</strong> Sign in at <a href="/auth/github">/auth/github</a>; subsequent same-origin requests carry the session cookie.</li>
+            <li><strong>Bearer token.</strong> Generate one from <a href="/profile">your profile</a> while signed in. Send it on every request:
+              <pre><code>Authorization: Bearer eq677_&lt;your-token&gt;</code></pre>
+              Tokens are 160-bit secrets prefixed with <code>eq677_</code>. They don't expire on their own; revoke from your profile.
+            </li>
+          </ol>
+          <p>Unauthenticated reads are always allowed.</p>
+        </section>
+
+        <section>
+          <h3>Hash arguments</h3>
+          <p>Anywhere a <code>:hash</code> appears in a route, you can supply any prefix that uniquely identifies a single magma — e.g., <code>/magma/abcd1234</code> resolves to the full canonical hash and (for HTML routes) redirects to the canonical URL.</p>
+        </section>
+
+        <section>
+          <h3>POST /submit</h3>
+          <p>Submit a candidate magma. The body must be the Cayley table as plain text: <em>n</em> rows of <em>n</em> non-negative integers (each <code>&lt; n</code>), whitespace- or comma-separated. The server canonicalizes the table and stores the isomorphism class.</p>
+          <ul>
+            <li>Content-Type: <code>text/plain</code></li>
+            <li>Auth: required</li>
+          </ul>
+          <p>Response (200, JSON):</p>
+          <pre><code>{
+  "id": 42,
+  "canonical_hash": "ab12...",
+  "size": 5,
+  "satisfies_255": true,
+  "right_cancellative": false,
+  "idempotent": false,
+  "fresh": true
+}</code></pre>
+          <p>Errors: <code>400</code> (parse), <code>401</code> (no auth), <code>415</code> (wrong Content-Type), <code>422</code> (table doesn't satisfy Equation 677 — response includes a witness <code>{x, y}</code>), <code>502</code> (canonicalizer failure).</p>
+          <pre><code>$ curl -X POST https://eq677.icarm.cloud/submit \\
+       -H 'authorization: Bearer eq677_&lt;token&gt;' \\
+       -H 'content-type: text/plain' \\
+       --data-binary @table.txt</code></pre>
+        </section>
+
+        <section>
+          <h3>POST /magma/:hash/comment</h3>
+          <p>Replace the magma's current comment. Each call appends an entry to the comment history.</p>
+          <ul>
+            <li>Auth: required</li>
+            <li>Max content: 4096 characters</li>
+            <li>Empty content clears the comment (still logged as a clear edit)</li>
+          </ul>
+          <p>JSON form (<code>Content-Type: application/json</code>):</p>
+          <pre><code>{ "content": "this is a quasigroup" }</code></pre>
+          <p>Returns:</p>
+          <pre><code>{
+  "canonical_hash": "ab12...",
+  "comment_id": 17,
+  "content": "this is a quasigroup"
+}</code></pre>
+          <p>Form-encoded (<code>application/x-www-form-urlencoded</code>): <code>content=...</code> &mdash; on success, redirects (302) to <code>/magma/:hash</code>.</p>
+          <pre><code>$ curl -X POST https://eq677.icarm.cloud/magma/ab12/comment \\
+       -H 'authorization: Bearer eq677_&lt;token&gt;' \\
+       -H 'content-type: application/json' \\
+       -d '{"content":"left-cancellative quasigroup of order 5"}'</code></pre>
+        </section>
+
+        <section>
+          <h3>POST /magma/:hash/display-reorder</h3>
+          <p>Set the visualization permutation σ used when rendering this magma's image. The canonical labeling is unchanged; the reorder is display-only and tracked in a separate history. Each call appends to that history.</p>
+          <ul>
+            <li>Auth: required</li>
+            <li>Format: comma-separated permutation of <code>[0, n)</code> &mdash; e.g. <code>0,3,1,2,4</code>. <code>null</code> (or empty form value) means identity.</li>
+          </ul>
+          <p>JSON form:</p>
+          <pre><code>{ "display_reorder": "0,3,1,2,4" }
+{ "display_reorder": null }</code></pre>
+          <p>Returns:</p>
+          <pre><code>{
+  "canonical_hash": "ab12...",
+  "display_reorder": "0,3,1,2,4"
+}</code></pre>
+          <p>Form-encoded: <code>display_reorder=0,3,1,2,4</code> (or empty). Redirects to <code>/magma/:hash/reorder-history</code>.</p>
+          <pre><code>$ curl -X POST https://eq677.icarm.cloud/magma/ab12/display-reorder \\
+       -H 'authorization: Bearer eq677_&lt;token&gt;' \\
+       -H 'content-type: application/json' \\
+       -d '{"display_reorder":"0,3,1,2,4"}'</code></pre>
+        </section>
+
+        <section>
+          <h3>Useful read endpoints</h3>
+          <ul>
+            <li><a href="/manifest.json"><code>GET /manifest.json</code></a> &mdash; full list of magmas with metadata and a direct R2 download URL for each.</li>
+            <li><code>GET /magma/:hash/table.txt</code> &mdash; the canonical Cayley table as plain text.</li>
+            <li><code>GET /magma/:hash/image.png</code> &mdash; rendered PNG. Optional <code>?reorder=&lt;value&gt;</code> overrides the stored permutation; <code>?reorder=</code> (empty) renders identity.</li>
+            <li><code>GET /magma/:hash/comments</code> &mdash; comment edit history.</li>
+            <li><code>GET /magma/:hash/reorder-history</code> &mdash; display-reorder edit history.</li>
+          </ul>
+        </section>
+      </div>`
+  return layout('API — Equation 677 Database', inner, user)
 }
 
 export function notFoundPage(message, user = null, backLink = null) {

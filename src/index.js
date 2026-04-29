@@ -21,6 +21,7 @@ import {
   profilePage,
   commentHistoryPage,
   reorderHistoryPage,
+  apiDocsPage,
 } from './pages.js'
 import {
   loadCurrentUser,
@@ -76,6 +77,8 @@ async function listTokens(env, userId) {
     .all()
   return results
 }
+
+app.get('/api', (c) => c.html(apiDocsPage(c.get('user'))))
 
 app.get('/profile', async (c) => {
   const user = c.get('user')
