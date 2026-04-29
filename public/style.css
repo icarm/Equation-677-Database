@@ -479,6 +479,8 @@ main h2 + .page-subtitle {
   display: block;
   border: 1px solid var(--border);
   background: #fff;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 .reorder-entry-info {
