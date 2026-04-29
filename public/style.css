@@ -157,6 +157,56 @@ header nav .auth-nav a {
   flex-wrap: wrap;
 }
 
+.comment-section {
+  margin: 1.5rem 0;
+}
+
+.comment-body {
+  white-space: pre-wrap;
+  border-left: 3px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  background: #fafafa;
+  border-radius: 0 3px 3px 0;
+  margin: 0.5rem 0;
+}
+
+.comment-meta {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0.25rem 0;
+}
+
+.comment-edit summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.comment-edit summary:hover {
+  color: var(--accent);
+}
+
+.comment-edit textarea {
+  width: 100%;
+  margin: 0.5rem 0;
+  font: inherit;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  resize: vertical;
+}
+
+.comment-history {
+  list-style: none;
+  padding: 0;
+}
+
+.comment-history li {
+  margin: 1rem 0;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
 main {
   max-width: 900px;
   margin: 0 auto;

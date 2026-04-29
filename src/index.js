@@ -19,6 +19,7 @@ import {
   submitResultPage,
   notFoundPage,
   profilePage,
+  commentHistoryPage,
 } from './pages.js'
 import {
   loadCurrentUser,
@@ -280,7 +281,14 @@ app.get('/magma/:hash', async (c) => {
     return c.redirect(`/magma/${resolved.hash}`, 302)
   }
   const row = await c.env.DB.prepare(
-    'SELECT id, canonical_hash, size, satisfies_255, right_cancellative, idempotent, display_reorder, r2_key, submitted_at, submitted_by FROM magmas WHERE canonical_hash = ?',
+    `SELECT m.id, m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative,
+            m.idempotent, m.display_reorder, m.r2_key, m.submitted_at, m.submitted_by,
+            cl.id AS comment_id, cl.content AS comment_content, cl.created_at AS comment_at,
+            u.display_name AS comment_author
+       FROM magmas m
+       LEFT JOIN comments_log cl ON cl.id = m.current_comment_id
+       LEFT JOIN users u ON u.id = cl.user_id
+       WHERE m.canonical_hash = ?`,
   )
     .bind(resolved.hash)
     .first()
@@ -394,6 +402,85 @@ app.post('/magma/:hash/display-reorder', async (c) => {
     .bind(stored, row.id)
     .run()
   return c.json({ canonical_hash: hash, display_reorder: stored })
+})
+
+const COMMENT_MAX = 4096
+
+app.post('/magma/:hash/comment', async (c) => {
+  const user = c.get('user')
+  if (!user) return c.json({ error: 'authentication required' }, 401)
+  const resolved = await resolveHash(c.env, c.req.param('hash'))
+  if (resolved.error === 'malformed') return c.json({ error: 'malformed hash' }, 404)
+  if (resolved.error === 'not_found') return c.json({ error: 'no such magma' }, 404)
+  if (resolved.error === 'ambiguous') return c.json({ error: 'ambiguous hash prefix' }, 400)
+  const ct = (c.req.header('content-type') || '').toLowerCase()
+  const isJson = ct.startsWith('application/json')
+  let content
+  if (isJson) {
+    let body
+    try {
+      body = await c.req.json()
+    } catch {
+      return c.json({ error: 'body must be JSON' }, 400)
+    }
+    if (typeof body !== 'object' || body === null || typeof body.content !== 'string') {
+      return c.json({ error: 'body must be { "content": string }' }, 400)
+    }
+    content = body.content
+  } else {
+    const body = await c.req.parseBody()
+    content = typeof body.content === 'string' ? body.content : ''
+  }
+  if (content.length > COMMENT_MAX) {
+    if (isJson) return c.json({ error: `comment exceeds ${COMMENT_MAX} chars` }, 413)
+    return c.html(notFoundPage(`Comment exceeds ${COMMENT_MAX} chars.`, user), 413)
+  }
+  const magma = await c.env.DB.prepare('SELECT id FROM magmas WHERE canonical_hash = ?')
+    .bind(resolved.hash)
+    .first()
+  if (!magma) {
+    return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
+  }
+  const ins = await c.env.DB.prepare(
+    'INSERT INTO comments_log (magma_id, user_id, content) VALUES (?, ?, ?)',
+  )
+    .bind(magma.id, user.id, content)
+    .run()
+  const newCommentId = ins.meta.last_row_id
+  await c.env.DB.prepare('UPDATE magmas SET current_comment_id = ? WHERE id = ?')
+    .bind(newCommentId, magma.id)
+    .run()
+  if (isJson) {
+    return c.json({
+      canonical_hash: resolved.hash,
+      comment_id: newCommentId,
+      content,
+    })
+  }
+  return c.redirect(`/magma/${resolved.hash}`, 302)
+})
+
+app.get('/magma/:hash/comments', async (c) => {
+  const resolved = await resolveHash(c.env, c.req.param('hash'))
+  if (resolved.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
+  if (resolved.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
+  if (resolved.error === 'ambiguous') {
+    return c.html(notFoundPage(`Ambiguous hash prefix "${c.req.param('hash')}" — matches multiple magmas.`, c.get('user')), 400)
+  }
+  if (resolved.hash !== c.req.param('hash')) {
+    return c.redirect(`/magma/${resolved.hash}/comments`, 302)
+  }
+  const { results } = await c.env.DB.prepare(
+    `SELECT cl.id, cl.content, cl.created_at, u.display_name AS author
+       FROM comments_log cl
+       LEFT JOIN users u ON u.id = cl.user_id
+       JOIN magmas m ON m.id = cl.magma_id
+       WHERE m.canonical_hash = ?
+       ORDER BY cl.id DESC`,
+  )
+    .bind(resolved.hash)
+    .all()
+  return c.html(commentHistoryPage(resolved.hash, results, c.get('user')))
 })
 
 app.get('/magma/:hash/table.txt', async (c) => {

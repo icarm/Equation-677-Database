@@ -37,6 +37,32 @@ function pageHead({ topLinks = [], title, subtitle }) {
       ${sub}`
 }
 
+function commentSection(row, user) {
+  const hash = row.canonical_hash
+  const hasComment = row.comment_content && row.comment_content.length > 0
+  const meta = row.comment_id
+    ? `<p class="comment-meta">last edited ${row.comment_author ? `by ${escapeHtml(row.comment_author)} ` : ''}at ${escapeHtml(row.comment_at)} &middot; <a href="/magma/${hash}/comments">history</a></p>`
+    : ''
+  const display = hasComment
+    ? `<div class="comment-body">${escapeHtml(row.comment_content)}</div>`
+    : `<p class="muted">No comment yet.</p>`
+  const editor = user
+    ? `<details class="comment-edit">
+        <summary>edit</summary>
+        <form method="post" action="/magma/${hash}/comment">
+          <textarea name="content" rows="6" maxlength="4096">${escapeHtml(row.comment_content || '')}</textarea>
+          <div><button type="submit">save</button> <span class="muted">submit empty to clear</span></div>
+        </form>
+      </details>`
+    : ''
+  return `<section class="comment-section">
+        <h3>Comment</h3>
+        ${display}
+        ${meta}
+        ${editor}
+      </section>`
+}
+
 function authNav(user) {
   if (user) {
     const name = escapeHtml(user.display_name || user.email || 'user')
@@ -216,7 +242,8 @@ export function magmaPage(row, user = null) {
           : `<dd><span class="muted">identity</span></dd>`}
         <dt>Raw table</dt>
         <dd><a href="/magma/${hash}/table.txt">text</a></dd>
-      </dl>`
+      </dl>
+      ${commentSection(row, user)}`
   return layout(`Magma ${short} — Equation 677 Database`, inner, user)
 }
 
@@ -306,6 +333,30 @@ export function profilePage(user, tokens, newToken) {
         </form>
       </section>`
   return layout('Profile — Equation 677 Database', inner, user)
+}
+
+export function commentHistoryPage(hash, entries, user = null) {
+  const short = hash.slice(0, 12)
+  const head = pageHead({
+    topLinks: [[`/magma/${hash}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
+    title: 'Comment history',
+    subtitle: `${entries.length} edit${entries.length === 1 ? '' : 's'}.`,
+  })
+  const items = entries.length
+    ? entries
+        .map(
+          (e) => `<li>
+        <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(deleted user)</span>'} &middot; ${escapeHtml(e.created_at)}</p>
+        ${e.content && e.content.length > 0
+          ? `<div class="comment-body">${escapeHtml(e.content)}</div>`
+          : `<p class="muted">(cleared)</p>`}
+      </li>`,
+        )
+        .join('\n')
+    : `<li class="muted">No comments yet.</li>`
+  const inner = `${head}
+      <ul class="comment-history">${items}</ul>`
+  return layout(`Comment history ${short} — Equation 677 Database`, inner, user)
 }
 
 export function notFoundPage(message, user = null) {
