@@ -64,10 +64,12 @@ header nav .auth-nav {
   margin-left: 1rem;
   font-size: 0.9rem;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 header nav .auth-nav a {
   margin-left: 0.6rem;
+  white-space: nowrap;
 }
 
 .auth-user {
