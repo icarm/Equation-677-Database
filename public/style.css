@@ -461,6 +461,34 @@ main h2 + .page-subtitle {
   margin-top: 0.25rem;
 }
 
+.reorder-edit {
+  margin-top: 0.4rem;
+}
+
+.reorder-edit summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.reorder-edit summary:hover {
+  color: var(--accent);
+}
+
+.reorder-edit input[type="text"] {
+  width: 100%;
+  margin: 0.4rem 0;
+  font: inherit;
+  font-family: monospace;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.reorder-edit button {
+  cursor: pointer;
+}
+
 .reorder-value-wrap {
   min-width: 0;
 }

@@ -242,6 +242,15 @@ export function magmaPage(row, user = null) {
             ? `<code>${escapeHtml(row.display_reorder)}</code>`
             : `<span class="muted">identity</span>`}
           <span class="reorder-history-link"><a href="/magma/${hash}/reorder-history">history</a></span>
+          ${user
+            ? `<details class="reorder-edit">
+              <summary>edit</summary>
+              <form method="post" action="/magma/${hash}/display-reorder">
+                <input type="text" name="display_reorder" value="${escapeHtml(row.display_reorder || '')}" placeholder="0,1,2,..." maxlength="4096" />
+                <div><button type="submit">save</button> <span class="muted">submit empty for identity</span></div>
+              </form>
+            </details>`
+            : ''}
         </dd>
         <dt>Raw table</dt>
         <dd><a href="/magma/${hash}/table.txt">text</a></dd>
