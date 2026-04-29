@@ -130,6 +130,7 @@ export function landingPage(samples = [], user = null) {
       <p>The canonicalization and database are based on <a href="https://github.com/memoryleak47/eq677">memoryleak47/eq677</a>.</p>
       <p class="browse-cta"><a href="/all">Browse the database &rarr;</a></p>
       ${sampleBlock}
+      <p class="browse-cta"><a href="/api">Try the API &rarr;</a></p>
       <section class="submit">
         <h2>Submit a candidate magma</h2>
         <p class="submit-help">Paste a Cayley table: <em>n</em> rows, each with <em>n</em> non-negative integers &lt; <em>n</em>, whitespace- or comma-separated.</p>
