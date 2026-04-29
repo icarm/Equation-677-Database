@@ -349,6 +349,7 @@ app.get('/manifest.json', async (c) => {
 const REORDER_BODY_MAX = 16 * 1024 // generous: even n=1000 needs <5 KB
 
 app.post('/magma/:hash/display-reorder', async (c) => {
+  if (!c.get('user')) return c.json({ error: 'authentication required' }, 401)
   const resolved = await resolveHash(c.env, c.req.param('hash'))
   if (resolved.error === 'malformed') return c.json({ error: 'malformed hash' }, 404)
   if (resolved.error === 'not_found') return c.json({ error: 'no such magma' }, 404)
