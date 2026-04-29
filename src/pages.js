@@ -354,7 +354,7 @@ export function reorderHistoryPage(hash, entries, user = null) {
           const restoreButton = user && !isCurrent
             ? `<form method="post" action="/magma/${hash}/display-reorder" class="inline-form">
                 <input type="hidden" name="display_reorder" value="${escapeHtml(e.display_reorder || '')}" />
-                <button type="submit" class="link-button">restore</button>
+                <button type="submit">restore</button>
               </form>`
             : ''
           const currentBadge = isCurrent ? `<span class="muted">(current)</span>` : ''
