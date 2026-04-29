@@ -61,7 +61,6 @@ function layout(title, bodyInner, user) {
       <div class="inner">
         <h1><a href="/">Equation 677 Database</a></h1>
         <nav>
-          <a href="/all">Browse</a>
           <span class="auth-nav">${authNav(user)}</span>
         </nav>
       </div>
