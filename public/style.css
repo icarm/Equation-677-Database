@@ -288,6 +288,18 @@ main h2 + .page-subtitle {
   word-break: break-all;
 }
 
+.magma-meta dd.reorder code {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+  word-break: normal;
+  padding: 0.15rem 0.4rem;
+  background: #f5f5f5;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
 @media (max-width: 520px) {
   .magma-meta {
     grid-template-columns: 1fr;

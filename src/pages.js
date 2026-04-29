@@ -198,7 +198,9 @@ export function magmaPage(row) {
         <dt>Idempotent</dt>
         <dd>${row.idempotent === null || row.idempotent === undefined ? '<span class="muted">unknown</span>' : row.idempotent ? 'yes' : 'no'}</dd>
         <dt>Display reorder</dt>
-        <dd>${row.display_reorder ? `<code>${escapeHtml(row.display_reorder)}</code>` : '<span class="muted">identity</span>'}</dd>
+        ${row.display_reorder
+          ? `<dd class="reorder"><code>${escapeHtml(row.display_reorder)}</code></dd>`
+          : `<dd><span class="muted">identity</span></dd>`}
         <dt>Submitted by</dt>
         ${submitted}
         <dt>Submitted at</dt>
