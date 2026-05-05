@@ -135,7 +135,7 @@ export function landingPage(samples = [], user = null) {
       <p class="browse-cta"><a href="/api">Try the API &rarr;</a></p>
       <section class="submit">
         <h2>Submit a candidate magma</h2>
-        <p class="submit-help">Paste a Cayley table: <em>n</em> rows, each with <em>n</em> non-negative integers &lt; <em>n</em>, whitespace- or comma-separated.</p>
+        <p class="submit-help">Paste a Cayley table: <em>n</em> rows, each with <em>n</em> non-negative integers &lt; <em>n</em>, whitespace- or comma-separated. A JSON array of arrays (e.g. <code>[[0,1],[1,0]]</code>) is also accepted.</p>
         <form method="post" action="/submit-form">
           <textarea name="table" rows="10" ${user ? 'required' : 'disabled'} placeholder="0 4 3 2 1&#10;3 1 4 0 2&#10;1 0 2 4 3&#10;4 2 1 3 0&#10;2 3 0 1 4"></textarea>
           <div class="submit-row">
@@ -450,9 +450,13 @@ export function apiDocsPage(user = null) {
 
         <section>
           <h3>POST /submit</h3>
-          <p>Submit a candidate magma. The body must be the Cayley table as plain text: <em>n</em> rows of <em>n</em> non-negative integers (each <code>&lt; n</code>), whitespace- or comma-separated. The server canonicalizes the table and stores the isomorphism class.</p>
+          <p>Submit a candidate magma. The body is the Cayley table, in either of two formats:</p>
           <ul>
-            <li>Content-Type: <code>text/plain</code></li>
+            <li><strong>Plain text</strong> (<code>Content-Type: text/plain</code>): <em>n</em> rows of <em>n</em> non-negative integers (each <code>&lt; n</code>), whitespace- or comma-separated.</li>
+            <li><strong>JSON array</strong> (<code>Content-Type: application/json</code>): a top-level array of arrays of integers, e.g. <code>[[0,1],[1,0]]</code>.</li>
+          </ul>
+          <p>The server canonicalizes the table and stores the isomorphism class.</p>
+          <ul>
             <li>Auth: required</li>
           </ul>
           <p>Response (200, JSON):</p>
@@ -469,7 +473,12 @@ export function apiDocsPage(user = null) {
           <pre><code>$ curl -X POST https://eq677.icarm.cloud/submit \\
        -H 'authorization: Bearer eq677_&lt;token&gt;' \\
        -H 'content-type: text/plain' \\
-       --data-binary @table.txt</code></pre>
+       --data-binary @table.txt
+
+$ curl -X POST https://eq677.icarm.cloud/submit \\
+       -H 'authorization: Bearer eq677_&lt;token&gt;' \\
+       -H 'content-type: application/json' \\
+       -d '[[0,4,3,2,1],[3,1,4,0,2],[1,0,2,4,3],[4,2,1,3,0],[2,3,0,1,4]]'</code></pre>
         </section>
 
         <section>

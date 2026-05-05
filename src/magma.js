@@ -1,12 +1,17 @@
 export const MAX_SIZE = 1000
 export const COMMENT_MAX = 4096
 
-// Parse eq677's native whitespace/comma-separated format into a 2D int array.
+// Parse a Cayley table into a 2D int array.
+// Accepts either:
+//   - eq677's native whitespace/comma-separated text (n lines of n integers), or
+//   - a JSON array of arrays of integers, e.g. [[0,1],[1,0]] (sniffed via leading '[').
 // Returns { table } on success or { error } on failure.
 export function parseText(text) {
   if (typeof text !== 'string') return { error: 'body must be text' }
-  const cleaned = text.replace(/,/g, ' ').trim()
-  if (cleaned.length === 0) return { error: 'body is empty' }
+  const trimmed = text.trim()
+  if (trimmed.length === 0) return { error: 'body is empty' }
+  if (trimmed.startsWith('[')) return parseJsonTable(trimmed)
+  const cleaned = trimmed.replace(/,/g, ' ')
   const rows = cleaned.split('\n').map((line) => line.trim()).filter((line) => line.length > 0)
   const n = rows.length
   if (n === 0) return { error: 'no rows found' }
@@ -33,6 +38,37 @@ export function parseText(text) {
       row[j] = v
     }
     table.push(row)
+  }
+  return { table }
+}
+
+function parseJsonTable(raw) {
+  let parsed
+  try {
+    parsed = JSON.parse(raw)
+  } catch (e) {
+    return { error: `JSON parse error: ${e.message}` }
+  }
+  if (!Array.isArray(parsed)) return { error: 'JSON body must be an array of arrays' }
+  const n = parsed.length
+  if (n === 0) return { error: 'no rows found' }
+  if (n > MAX_SIZE) return { error: `size ${n} exceeds cap of ${MAX_SIZE}` }
+  const table = new Array(n)
+  for (let i = 0; i < n; i++) {
+    const row = parsed[i]
+    if (!Array.isArray(row)) return { error: `row ${i} is not an array` }
+    if (row.length !== n) {
+      return { error: `row ${i} has ${row.length} entries, expected ${n}` }
+    }
+    const out = new Array(n)
+    for (let j = 0; j < n; j++) {
+      const v = row[j]
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v >= n) {
+        return { error: `row ${i}, col ${j}: ${JSON.stringify(v)} is not in [0, ${n})` }
+      }
+      out[j] = v
+    }
+    table[i] = out
   }
   return { table }
 }

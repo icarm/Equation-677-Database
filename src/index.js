@@ -227,8 +227,11 @@ app.post('/submit', async (c) => {
   const user = c.get('user')
   if (!user) return c.json({ error: 'authentication required' }, 401)
   const contentType = (c.req.header('content-type') || '').split(';')[0].trim().toLowerCase()
-  if (contentType && contentType !== 'text/plain') {
-    return c.json({ error: `content-type must be text/plain, got ${contentType}` }, 415)
+  if (contentType && contentType !== 'text/plain' && contentType !== 'application/json') {
+    return c.json(
+      { error: `content-type must be text/plain or application/json, got ${contentType}` },
+      415,
+    )
   }
   const raw = await c.req.text()
   const submitter = user.display_name || user.email || `user-${user.id}`
