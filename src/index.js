@@ -211,6 +211,14 @@ async function submitMagma(raw, submitter, env) {
     .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, idempotent ? 1 : 0, r2Key, submitter)
     .run()
 
+  // Seed the reorder log with an identity entry so it's always the oldest
+  // entry for this magma (matches the prepopulation done in migration 0008).
+  await env.DB.prepare(
+    'INSERT INTO display_reorder_log (magma_id, user_id, display_reorder) VALUES (?, NULL, NULL)',
+  )
+    .bind(result.meta.last_row_id)
+    .run()
+
   return {
     kind: 'ok',
     fresh: true,
