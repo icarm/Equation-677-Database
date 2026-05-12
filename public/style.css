@@ -22,7 +22,7 @@ html, body {
 
 header {
   border-bottom: 1px solid var(--border);
-  background: #fff;
+  background: #fafcfe;
 }
 
 header .inner {
