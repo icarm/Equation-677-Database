@@ -231,15 +231,21 @@ async function submitMagma(raw, submitter, env) {
     .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, idempotent ? 1 : 0, seedReorder, r2Key, submitter)
     .run()
 
-  // Seed the reorder log with the submitter's original ordering (or identity
-  // if it happens to match the canonical labeling). This guarantees the
-  // history always has a baseline first entry attributed to the submission
-  // itself, mirroring what migration 0008 did for pre-existing magmas.
+  // Seed the reorder log so its history always starts with the canonical
+  // (identity) ordering, followed by the submitter's ordering when it
+  // differs. Mirrors migration 0008's prepopulation for pre-existing magmas.
   await env.DB.prepare(
-    'INSERT INTO display_reorder_log (magma_id, user_id, display_reorder) VALUES (?, NULL, ?)',
+    'INSERT INTO display_reorder_log (magma_id, user_id, display_reorder) VALUES (?, NULL, NULL)',
   )
-    .bind(result.meta.last_row_id, seedReorder)
+    .bind(result.meta.last_row_id)
     .run()
+  if (seedReorder !== null) {
+    await env.DB.prepare(
+      'INSERT INTO display_reorder_log (magma_id, user_id, display_reorder) VALUES (?, NULL, ?)',
+    )
+      .bind(result.meta.last_row_id, seedReorder)
+      .run()
+  }
 
   return {
     kind: 'ok',
