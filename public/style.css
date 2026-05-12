@@ -713,6 +713,21 @@ a.external::after {
   font-size: 0.85rem;
 }
 
+.pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.pager .pager-current {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .submit textarea,
 textarea.fme-paste {
   width: 100%;

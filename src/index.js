@@ -323,7 +323,11 @@ app.get('/', async (c) => {
 // identity/seed rows inserted by submitMagma) are filtered out — they don't
 // represent user-initiated activity. Comments are always user-initiated.
 app.get('/recent', async (c) => {
-  const RECENT_LIMIT = 20
+  const PAGE_SIZE = 20
+  const rawPage = Number(c.req.query('page'))
+  const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1
+  // Fetch one extra row so we can tell whether a next page exists without
+  // running a separate COUNT.
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM (
        SELECT 'magma' AS kind, m.submitted_at AS at, m.id AS magma_id,
@@ -352,11 +356,13 @@ app.get('/recent', async (c) => {
          LEFT JOIN users u ON u.id = cl.user_id
      )
      ORDER BY at DESC, magma_id DESC
-     LIMIT ?`,
+     LIMIT ? OFFSET ?`,
   )
-    .bind(RECENT_LIMIT)
+    .bind(PAGE_SIZE + 1, (page - 1) * PAGE_SIZE)
     .all()
-  return c.html(recentPage(results, c.get('user')))
+  const hasNext = results.length > PAGE_SIZE
+  const items = hasNext ? results.slice(0, PAGE_SIZE) : results
+  return c.html(recentPage(items, page, hasNext, c.get('user')))
 })
 
 app.get('/by-size', async (c) => {

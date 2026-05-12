@@ -367,11 +367,10 @@ export function profilePage(user, tokens, newToken) {
   return layout('Profile — Equation 677 Database', inner, user)
 }
 
-export function recentPage(items, user = null) {
+export function recentPage(items, page, hasNext, user = null) {
   const head = pageHead({
     topLinks: [['/', '&larr; home']],
     title: 'Recent activity',
-    subtitle: `${items.length} change${items.length === 1 ? '' : 's'}.`,
   })
   const COMMENT_PREVIEW = 120
   const list = items.length
@@ -411,8 +410,18 @@ export function recentPage(items, user = null) {
         })
         .join('\n')
     : `<li class="muted">No activity yet.</li>`
+  const prevHref = page > 2 ? `/recent?page=${page - 1}` : page === 2 ? `/recent` : null
+  const nextHref = hasNext ? `/recent?page=${page + 1}` : null
+  const pager = (prevHref || nextHref)
+    ? `<nav class="pager">
+         ${prevHref ? `<a href="${prevHref}">&larr; newer</a>` : `<span class="muted">&larr; newer</span>`}
+         <span class="pager-current">page ${page}</span>
+         ${nextHref ? `<a href="${nextHref}">older &rarr;</a>` : `<span class="muted">older &rarr;</span>`}
+       </nav>`
+    : ''
   const inner = `${head}
-      <ul class="recent-list">${list}</ul>`
+      <ul class="recent-list">${list}</ul>
+      ${pager}`
   return layout('Recent activity — Equation 677 Database', inner, user)
 }
 
