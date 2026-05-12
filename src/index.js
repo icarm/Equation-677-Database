@@ -23,6 +23,7 @@ import {
   commentHistoryPage,
   reorderHistoryPage,
   apiDocsPage,
+  fmePastePage,
 } from './pages.js'
 import {
   loadCurrentUser,
@@ -430,7 +431,16 @@ app.get('/magma/:hash/fme', async (c) => {
     const parsed = parseReorder(reorderToApply, table.length)
     if (parsed.sigma) table = applyReorder(table, parsed.sigma)
   }
-  const url = `https://teorth.github.io/equational_theories/fme/?magma=${encodeURIComponent(JSON.stringify(table))}`
+  const tableJson = JSON.stringify(table)
+  const fmeBase = 'https://teorth.github.io/equational_theories/fme/'
+  const url = `${fmeBase}?magma=${encodeURIComponent(tableJson)}`
+  // GitHub Pages (Fastly) caps request URLs at ~8 KB. For larger magmas we
+  // can't prepopulate via the query string; render a fallback page that
+  // shows the table for manual paste and a bare-FME link.
+  const FME_URL_LIMIT = 7500
+  if (url.length > FME_URL_LIMIT) {
+    return c.html(fmePastePage(resolved.hash, tableJson, fmeBase, c.get('user')))
+  }
   return c.redirect(url, 302)
 })
 

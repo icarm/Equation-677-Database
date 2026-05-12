@@ -366,6 +366,24 @@ export function profilePage(user, tokens, newToken) {
   return layout('Profile — Equation 677 Database', inner, user)
 }
 
+// Fallback when the magma's table is too big to fit in FME's query string.
+// We show the JSON for the user to copy and a button that opens FME bare.
+export function fmePastePage(hash, tableJson, fmeUrl, user = null) {
+  const short = hash.slice(0, 12)
+  const head = pageHead({
+    topLinks: [[`/magma/${hash}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
+    title: 'Open in Finite Magma Explorer',
+  })
+  const inner = `${head}
+      <p>This table is too large to embed in the Finite Magma Explorer URL.
+      Copy the JSON below and paste it into FME's input.</p>
+      <p>
+        <a href="${escapeHtml(fmeUrl)}" target="_blank" rel="noopener noreferrer">Open Finite Magma Explorer &rarr;</a>
+      </p>
+      <textarea readonly rows="12" class="fme-paste" onclick="this.select()">${escapeHtml(tableJson)}</textarea>`
+  return layout(`Open FME — magma ${short}`, inner, user)
+}
+
 export function reorderHistoryPage(hash, entries, user = null) {
   const short = hash.slice(0, 12)
   const head = pageHead({

@@ -645,7 +645,8 @@ main h2 + .page-subtitle {
   margin-top: 0.25rem;
 }
 
-.submit textarea {
+.submit textarea,
+textarea.fme-paste {
   width: 100%;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.95rem;
