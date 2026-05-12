@@ -1,9 +1,14 @@
 :root {
-  --bg: #f3f6fb;
+  --bg: #f3f6fb;          /* page background */
   --fg: #1a1a1a;
   --muted: #566370;
   --accent: #2a6df4;
   --border: #dbe3ec;
+  --panel: #fafcfe;       /* cards, header, inputs, image backdrops */
+  --panel-soft: #f6f8fb;  /* faintly recessed panels (e.g. comment body) */
+  --code-bg: #eef2f7;     /* code blocks and inline pre */
+  --row-stripe: #dde4ec;  /* zebra rows */
+  --accent-soft: #eaf1fb; /* pale accent callouts */
 }
 
 * {
@@ -22,7 +27,7 @@ html, body {
 
 header {
   border-bottom: 1px solid var(--border);
-  background: #fafcfe;
+  background: var(--panel);
 }
 
 header .inner {
@@ -97,14 +102,14 @@ header nav .auth-nav a {
 
 .new-token {
   border: 1px solid var(--accent);
-  background: #eaf1fb;
+  background: var(--accent-soft);
   padding: 0.75rem 1rem;
   border-radius: 4px;
   margin: 1rem 0;
 }
 
 .token-secret {
-  background: #fff;
+  background: var(--panel);
   border: 1px solid var(--border);
   padding: 0.5rem 0.75rem;
   border-radius: 3px;
@@ -191,7 +196,7 @@ header nav .auth-nav a {
 }
 
 .api-docs pre {
-  background: #eef2f7;
+  background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 3px;
   padding: 0.6rem 0.8rem;
@@ -224,7 +229,7 @@ header nav .auth-nav a {
   white-space: pre-wrap;
   border-left: 3px solid var(--border);
   padding: 0.5rem 0.75rem;
-  background: #f6f8fb;
+  background: var(--panel-soft);
   border-radius: 0 3px 3px 0;
   margin: 0.5rem 0;
 }
@@ -286,7 +291,7 @@ main p {
 .question {
   margin: 0 0 2.5rem;
   padding: 1.75rem 2rem;
-  background: #fff;
+  background: var(--panel);
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
   border-radius: 4px;
@@ -432,7 +437,7 @@ main h2 + .page-subtitle {
   border-radius: 4px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel);
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 }
 
@@ -464,7 +469,7 @@ main h2 + .page-subtitle {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel);
 }
 
 .magma-meta {
@@ -493,7 +498,7 @@ main h2 + .page-subtitle {
 
 .magma-meta dt:nth-of-type(odd),
 .magma-meta dd:nth-of-type(odd) {
-  background: #dde4ec;
+  background: var(--row-stripe);
 }
 
 .magma-meta dd.muted {
@@ -513,7 +518,7 @@ main h2 + .page-subtitle {
   white-space: nowrap;
   word-break: normal;
   padding: 0.15rem 0.4rem;
-  background: #eef2f7;
+  background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 3px;
 }
@@ -588,7 +593,7 @@ a.external::after {
 .reorder-entry-thumb img {
   display: block;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel);
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
@@ -672,7 +677,7 @@ textarea.fme-paste {
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--panel);
   resize: vertical;
   box-sizing: border-box;
   line-height: 1.4;
@@ -707,7 +712,7 @@ textarea.fme-paste {
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--panel);
   font-size: 0.95rem;
   min-width: 0;
 }
@@ -735,7 +740,7 @@ textarea.fme-paste {
   padding: 1rem 1.25rem;
   border-radius: 4px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel);
   margin: 1rem 0;
 }
 
