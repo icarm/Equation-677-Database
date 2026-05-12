@@ -148,7 +148,7 @@ app.post('/profile/tokens/:id/revoke', async (c) => {
   return c.redirect('/profile', 302)
 })
 
-async function submitMagma(raw, submitter, env) {
+async function submitMagma(raw, submitter, submitterUserId, env) {
   const parsed = parseText(raw)
   if (parsed.error) return { kind: 'parse_error', message: parsed.error }
   const table = parsed.table
@@ -228,9 +228,9 @@ async function submitMagma(raw, submitter, env) {
     httpMetadata: { contentType: 'text/plain; charset=utf-8' },
   })
   const result = await env.DB.prepare(
-    'INSERT INTO magmas (canonical_hash, size, satisfies_255, right_cancellative, idempotent, display_reorder, r2_key, submitted_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO magmas (canonical_hash, size, satisfies_255, right_cancellative, idempotent, display_reorder, r2_key, submitted_by, submitted_by_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
   )
-    .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, idempotent ? 1 : 0, seedReorder, r2Key, submitter)
+    .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, idempotent ? 1 : 0, seedReorder, r2Key, submitter, submitterUserId)
     .run()
 
   // Seed the reorder log so its history always starts with the canonical
@@ -273,7 +273,7 @@ app.post('/submit', async (c) => {
   }
   const raw = await c.req.text()
   const submitter = user.display_name || user.email || `user-${user.id}`
-  const result = await submitMagma(raw, submitter, c.env)
+  const result = await submitMagma(raw, submitter, user.id, c.env)
   if (result.kind === 'parse_error') return c.json({ error: result.message }, 400)
   if (result.kind === 'not_677') {
     return c.json(
@@ -304,7 +304,7 @@ app.post('/submit-form', async (c) => {
   const body = await c.req.parseBody()
   const raw = typeof body.table === 'string' ? body.table : ''
   const submitter = user.display_name || user.email || `user-${user.id}`
-  const result = await submitMagma(raw, submitter, c.env)
+  const result = await submitMagma(raw, submitter, user.id, c.env)
   if (result.kind === 'ok') {
     return c.redirect(`/magma/${result.hash}`, 302)
   }
@@ -328,8 +328,11 @@ app.get('/recent', async (c) => {
     `SELECT * FROM (
        SELECT 'magma' AS kind, m.submitted_at AS at, m.id AS magma_id,
               m.canonical_hash AS hash, m.display_reorder AS hash_reorder,
-              m.size AS size, m.submitted_by AS author, NULL AS detail
+              m.size AS size,
+              COALESCE(u.display_name, m.submitted_by) AS author,
+              NULL AS detail
          FROM magmas m
+         LEFT JOIN users u ON u.id = m.submitted_by_user_id
        UNION ALL
        SELECT 'reorder' AS kind, dr.created_at AS at, dr.magma_id AS magma_id,
               m.canonical_hash AS hash, m.display_reorder AS hash_reorder,
@@ -399,12 +402,14 @@ app.get('/magma/:hash', async (c) => {
   }
   const row = await c.env.DB.prepare(
     `SELECT m.id, m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative,
-            m.idempotent, m.display_reorder, m.submitted_at, m.submitted_by,
+            m.idempotent, m.display_reorder, m.submitted_at,
+            COALESCE(su.display_name, m.submitted_by) AS submitted_by,
             cl.id AS comment_id, cl.content AS comment_content, cl.created_at AS comment_at,
-            u.display_name AS comment_author
+            cu.display_name AS comment_author
        FROM magmas m
+       LEFT JOIN users su ON su.id = m.submitted_by_user_id
        LEFT JOIN comments_log cl ON cl.id = m.current_comment_id
-       LEFT JOIN users u ON u.id = cl.user_id
+       LEFT JOIN users cu ON cu.id = cl.user_id
        WHERE m.canonical_hash = ?`,
   )
     .bind(resolved.hash)
@@ -488,9 +493,11 @@ const BUCKET_PUBLIC_BASE = 'https://eq677-magmas.icarm.cloud'
 app.get('/manifest.json', async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative, m.idempotent,
-            m.display_reorder, m.r2_key, m.submitted_at, m.submitted_by,
+            m.display_reorder, m.r2_key, m.submitted_at,
+            COALESCE(u.display_name, m.submitted_by) AS submitted_by,
             cl.content AS comment
        FROM magmas m
+       LEFT JOIN users u ON u.id = m.submitted_by_user_id
        LEFT JOIN comments_log cl ON cl.id = m.current_comment_id
        ORDER BY m.size, m.id`,
   ).all()
