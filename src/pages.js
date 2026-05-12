@@ -264,7 +264,7 @@ export function magmaPage(row, user = null) {
         </dd>
         <dt>Explore</dt>
         <dd>
-          <a href="/magma/${hash}/fme" target="_blank" rel="noopener noreferrer">Finite Magma Explorer</a>
+          <a class="external" href="/magma/${hash}/fme" target="_blank" rel="noopener noreferrer">Finite Magma Explorer</a>
         </dd>
       </dl>
       ${commentSection(row, user)}`
@@ -378,7 +378,7 @@ export function fmePastePage(hash, tableJson, fmeUrl, user = null) {
       <p>This table is too large to embed in the Finite Magma Explorer URL.
       Copy the JSON below and paste it into FME's input.</p>
       <p>
-        <a href="${escapeHtml(fmeUrl)}" target="_blank" rel="noopener noreferrer">Open Finite Magma Explorer &rarr;</a>
+        <a class="external" href="${escapeHtml(fmeUrl)}" target="_blank" rel="noopener noreferrer">Open Finite Magma Explorer</a>
       </p>
       <textarea readonly rows="12" class="fme-paste" onclick="this.select()">${escapeHtml(tableJson)}</textarea>`
   return layout(`Open FME — magma ${short}`, inner, user)
