@@ -166,8 +166,28 @@ async function submitMagma(raw, submitter, env) {
     const detail = await canonResp.text()
     return { kind: 'canonicalizer_error', status: canonResp.status, detail }
   }
-  const { canonical, is255 } = await canonResp.json()
+  const { canonical, is255, perm } = await canonResp.json()
   const canonicalHash = await sha256Hex(canonical)
+
+  // `perm` is π: canonical element k came from the submitter's element π[k].
+  // The display_reorder σ that reproduces the submitter's ordering when
+  // applied to the canonical table is π⁻¹. Validate defensively; if anything
+  // is off, fall back to identity (null) rather than refusing the submission.
+  let seedReorder = null
+  if (Array.isArray(perm) && perm.length === n) {
+    const inv = new Array(n)
+    const seen = new Uint8Array(n)
+    let ok = true
+    let isIdentity = true
+    for (let k = 0; k < n; k++) {
+      const v = perm[k]
+      if (!Number.isInteger(v) || v < 0 || v >= n || seen[v]) { ok = false; break }
+      seen[v] = 1
+      inv[v] = k
+      if (v !== k) isIdentity = false
+    }
+    if (ok && !isIdentity) seedReorder = inv.join(',')
+  }
 
   const existing = await env.DB.prepare(
     'SELECT id, satisfies_255, right_cancellative, idempotent FROM magmas WHERE canonical_hash = ?',
@@ -206,17 +226,19 @@ async function submitMagma(raw, submitter, env) {
     httpMetadata: { contentType: 'text/plain; charset=utf-8' },
   })
   const result = await env.DB.prepare(
-    'INSERT INTO magmas (canonical_hash, size, satisfies_255, right_cancellative, idempotent, r2_key, submitted_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO magmas (canonical_hash, size, satisfies_255, right_cancellative, idempotent, display_reorder, r2_key, submitted_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
   )
-    .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, idempotent ? 1 : 0, r2Key, submitter)
+    .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, idempotent ? 1 : 0, seedReorder, r2Key, submitter)
     .run()
 
-  // Seed the reorder log with an identity entry so it's always the oldest
-  // entry for this magma (matches the prepopulation done in migration 0008).
+  // Seed the reorder log with the submitter's original ordering (or identity
+  // if it happens to match the canonical labeling). This guarantees the
+  // history always has a baseline first entry attributed to the submission
+  // itself, mirroring what migration 0008 did for pre-existing magmas.
   await env.DB.prepare(
-    'INSERT INTO display_reorder_log (magma_id, user_id, display_reorder) VALUES (?, NULL, NULL)',
+    'INSERT INTO display_reorder_log (magma_id, user_id, display_reorder) VALUES (?, NULL, ?)',
   )
-    .bind(result.meta.last_row_id)
+    .bind(result.meta.last_row_id, seedReorder)
     .run()
 
   return {

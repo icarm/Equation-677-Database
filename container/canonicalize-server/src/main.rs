@@ -17,6 +17,10 @@ struct CanonReq {
 struct CanonResp {
     canonical: String,
     is255: bool,
+    // π such that canonical element k corresponds to input element perm[k].
+    // The caller can invert this to obtain a display_reorder that reproduces
+    // the submitter's original labeling when applied to the canonical form.
+    perm: Vec<usize>,
 }
 
 async fn canonicalize(
@@ -45,10 +49,10 @@ async fn canonicalize(
 
     let result = task::spawn_blocking(move || {
         let m = MatrixMagma::by_fn(n, |x, y| req.table[x][y]);
-        let canon = m.canonicalize2();
+        let (canon, perm) = m.canonicalize2_with_perm();
         let canonical = canon.to_string();
         let is255 = canon.is255();
-        CanonResp { canonical, is255 }
+        CanonResp { canonical, is255, perm }
     })
     .await
     .map_err(|e| {
