@@ -113,7 +113,8 @@ export function landingPage(samples = [], user = null) {
       <div class="landing-samples">
         ${thumbs}
       </div>
-      <p class="landing-samples-caption">(random magmas from the database)</p>`
+      <p class="landing-samples-caption">(random magmas from the database)</p>
+      <p class="browse-cta"><a href="/recent">See recent activity &rarr;</a></p>`
     : ''
   const inner = `
       <section class="question">
@@ -364,6 +365,55 @@ export function profilePage(user, tokens, newToken) {
         </form>
       </section>`
   return layout('Profile — Equation 677 Database', inner, user)
+}
+
+export function recentPage(items, user = null) {
+  const head = pageHead({
+    topLinks: [['/', '&larr; home']],
+    title: 'Recent activity',
+    subtitle: `${items.length} change${items.length === 1 ? '' : 's'}.`,
+  })
+  const COMMENT_PREVIEW = 120
+  const list = items.length
+    ? items
+        .map((it) => {
+          const short = it.hash.slice(0, 8)
+          const reorderQ = it.hash_reorder ? encodeURIComponent(it.hash_reorder) : ''
+          const thumb = `<img src="/magma/${it.hash}/image.png?reorder=${reorderQ}" width="64" height="64" alt="magma ${escapeHtml(short)}" loading="lazy" />`
+          let desc
+          if (it.kind === 'magma') {
+            desc = `New magma of size ${it.size}`
+          } else if (it.kind === 'reorder') {
+            desc = it.detail
+              ? `Reorder set to <code>${escapeHtml(it.detail)}</code>`
+              : `Reorder reset to identity`
+          } else {
+            const content = it.detail || ''
+            if (content === '') {
+              desc = `Comment cleared`
+            } else {
+              const preview = content.length > COMMENT_PREVIEW
+                ? content.slice(0, COMMENT_PREVIEW).trimEnd() + '…'
+                : content
+              desc = `Comment: ${escapeHtml(preview)}`
+            }
+          }
+          const author = it.author
+            ? escapeHtml(it.author)
+            : `<span class="muted">(anonymous)</span>`
+          return `<li class="recent-item">
+        <a class="recent-thumb" href="/magma/${it.hash}">${thumb}</a>
+        <div class="recent-info">
+          <div class="recent-desc"><a href="/magma/${it.hash}"><code>${escapeHtml(short)}&hellip;</code></a> &middot; ${desc}</div>
+          <div class="recent-meta">${escapeHtml(it.at)} &middot; ${author}</div>
+        </div>
+      </li>`
+        })
+        .join('\n')
+    : `<li class="muted">No activity yet.</li>`
+  const inner = `${head}
+      <ul class="recent-list">${list}</ul>`
+  return layout('Recent activity — Equation 677 Database', inner, user)
 }
 
 // Fallback when the magma's table is too big to fit in FME's query string.

@@ -24,6 +24,7 @@ import {
   reorderHistoryPage,
   apiDocsPage,
   fmePastePage,
+  recentPage,
 } from './pages.js'
 import {
   loadCurrentUser,
@@ -315,6 +316,44 @@ app.get('/', async (c) => {
     'SELECT canonical_hash, size, display_reorder FROM magmas ORDER BY RANDOM() LIMIT 4',
   ).all()
   return c.html(landingPage(results, c.get('user')))
+})
+
+// Combined activity feed: new magmas, reorder edits, and comments, newest first.
+// Reorder entries with no user (migration-prepopulated rows or the
+// identity/seed rows inserted by submitMagma) are filtered out — they don't
+// represent user-initiated activity. Comments are always user-initiated.
+app.get('/recent', async (c) => {
+  const RECENT_LIMIT = 20
+  const { results } = await c.env.DB.prepare(
+    `SELECT * FROM (
+       SELECT 'magma' AS kind, m.submitted_at AS at, m.id AS magma_id,
+              m.canonical_hash AS hash, m.display_reorder AS hash_reorder,
+              m.size AS size, m.submitted_by AS author, NULL AS detail
+         FROM magmas m
+       UNION ALL
+       SELECT 'reorder' AS kind, dr.created_at AS at, dr.magma_id AS magma_id,
+              m.canonical_hash AS hash, m.display_reorder AS hash_reorder,
+              m.size AS size, u.display_name AS author,
+              dr.display_reorder AS detail
+         FROM display_reorder_log dr
+         JOIN magmas m ON m.id = dr.magma_id
+         LEFT JOIN users u ON u.id = dr.user_id
+         WHERE dr.user_id IS NOT NULL
+       UNION ALL
+       SELECT 'comment' AS kind, cl.created_at AS at, cl.magma_id AS magma_id,
+              m.canonical_hash AS hash, m.display_reorder AS hash_reorder,
+              m.size AS size, u.display_name AS author,
+              cl.content AS detail
+         FROM comments_log cl
+         JOIN magmas m ON m.id = cl.magma_id
+         LEFT JOIN users u ON u.id = cl.user_id
+     )
+     ORDER BY at DESC, magma_id DESC
+     LIMIT ?`,
+  )
+    .bind(RECENT_LIMIT)
+    .all()
+  return c.html(recentPage(results, c.get('user')))
 })
 
 app.get('/by-size', async (c) => {
