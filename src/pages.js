@@ -262,7 +262,7 @@ export function magmaPage(row, user = null) {
           &middot;
           <a href="/magma/${hash}/table.txt?reorder=${encodeURIComponent(row.display_reorder || '')}">displayed order</a>
         </dd>
-        <dt>Explore</dt>
+        <dt>Equational Theories</dt>
         <dd>
           <a class="external" href="/magma/${hash}/fme" target="_blank" rel="noopener noreferrer">Finite Magma Explorer</a>
         </dd>
