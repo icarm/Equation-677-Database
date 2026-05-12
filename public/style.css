@@ -660,6 +660,10 @@ a.external::after {
   margin-top: 0.25rem;
 }
 
+.fme-paste-actions {
+  margin: 0.5rem 0;
+}
+
 .submit textarea,
 textarea.fme-paste {
   width: 100%;

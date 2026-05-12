@@ -380,7 +380,39 @@ export function fmePastePage(hash, tableJson, fmeUrl, user = null) {
       <p>
         <a class="external" href="${escapeHtml(fmeUrl)}" target="_blank" rel="noopener noreferrer">Open Finite Magma Explorer</a>
       </p>
-      <textarea readonly rows="12" class="fme-paste" onclick="this.select()">${escapeHtml(tableJson)}</textarea>`
+      <div class="fme-paste-actions">
+        <button type="button" id="fme-copy-btn">Copy table</button>
+      </div>
+      <textarea id="fme-paste" readonly rows="12" class="fme-paste" onclick="this.select()">${escapeHtml(tableJson)}</textarea>
+      <script>
+        (function () {
+          var btn = document.getElementById('fme-copy-btn');
+          var ta = document.getElementById('fme-paste');
+          if (!btn || !ta) return;
+          var defaultLabel = btn.textContent;
+          var flash = function (msg) {
+            btn.textContent = msg;
+            setTimeout(function () { btn.textContent = defaultLabel; }, 1500);
+          };
+          btn.addEventListener('click', function () {
+            var fallback = function () {
+              ta.focus();
+              ta.select();
+              try {
+                flash(document.execCommand('copy') ? 'Copied' : 'Copy failed');
+              } catch (e) { flash('Copy failed'); }
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(ta.value).then(
+                function () { flash('Copied'); },
+                fallback
+              );
+            } else {
+              fallback();
+            }
+          });
+        })();
+      </script>`
   return layout(`Open FME — magma ${short}`, inner, user)
 }
 
