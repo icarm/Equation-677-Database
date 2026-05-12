@@ -406,6 +406,34 @@ app.get('/magma/:hash/image.png', async (c) => {
   })
 })
 
+// Redirect to the Finite Magma Explorer with the table prepopulated.
+// FME accepts ?magma=<JSON or whitespace-separated rows>; we send compact JSON.
+// Reorder semantics match /image.png and /table.txt: absent → row's stored,
+// ?reorder= empty → identity, ?reorder=<value> → override.
+app.get('/magma/:hash/fme', async (c) => {
+  const resolved = await resolveHash(c.env, c.req.param('hash'))
+  if (resolved.error) return c.notFound()
+  const row = await c.env.DB.prepare(
+    'SELECT r2_key, display_reorder FROM magmas WHERE canonical_hash = ?',
+  )
+    .bind(resolved.hash)
+    .first()
+  if (!row) return c.notFound()
+  const obj = await c.env.BUCKET.get(row.r2_key)
+  if (!obj) return c.notFound()
+  const text = await obj.text()
+  let table = parseCanonicalText(text)
+  const reorderQuery = c.req.query('reorder')
+  const reorderToApply =
+    reorderQuery === undefined ? row.display_reorder : reorderQuery || null
+  if (reorderToApply) {
+    const parsed = parseReorder(reorderToApply, table.length)
+    if (parsed.sigma) table = applyReorder(table, parsed.sigma)
+  }
+  const url = `https://teorth.github.io/equational_theories/fme/?magma=${encodeURIComponent(JSON.stringify(table))}`
+  return c.redirect(url, 302)
+})
+
 const BUCKET_PUBLIC_BASE = 'https://eq677-magmas.icarm.cloud'
 
 app.get('/manifest.json', async (c) => {

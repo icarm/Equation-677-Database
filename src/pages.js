@@ -262,6 +262,10 @@ export function magmaPage(row, user = null) {
           &middot;
           <a href="/magma/${hash}/table.txt?reorder=${encodeURIComponent(row.display_reorder || '')}">displayed order</a>
         </dd>
+        <dt>Explore</dt>
+        <dd>
+          <a href="/magma/${hash}/fme" target="_blank" rel="noopener noreferrer">Finite Magma Explorer</a>
+        </dd>
       </dl>
       ${commentSection(row, user)}`
   return layout(`Magma ${short} — Equation 677 Database`, inner, user)
