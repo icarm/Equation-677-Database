@@ -43,31 +43,47 @@ export { Canonicalizer } from './canonicalizer.js'
 
 const HASH_PREFIX_RE = /^[0-9a-f]{1,64}$/
 
-// Resolve a (possibly partial) lowercase-hex hash to a unique full canonical_hash.
-// Returns { hash } on success, or { error: 'malformed' | 'not_found' | 'ambiguous' }.
-async function resolveHash(env, raw) {
+// D1's LIKE pattern length is capped at 50; a 64-char hash plus '%' exceeds
+// it, so use exact equality when the input is already a full hash.
+function hashWhereClause(raw) {
+  return raw.length === 64
+    ? { op: 'm.canonical_hash = ?', bind: raw }
+    : { op: 'm.canonical_hash LIKE ?', bind: `${raw}%` }
+}
+
+// Resolve a (possibly partial) hash and fetch the row in a single DB
+// roundtrip. `columnsSql` is the SELECT list; `joinsSql` is appended after
+// `FROM magmas m`. Returns { row } on success or { error }.
+async function resolveAndFetchRow(env, raw, columnsSql, joinsSql = '') {
   if (typeof raw !== 'string' || !HASH_PREFIX_RE.test(raw)) {
     return { error: 'malformed' }
   }
-  // D1's LIKE pattern length is capped at 50; a 64-char hash plus '%' exceeds
-  // that, so use exact equality when the input is already a full hash.
-  if (raw.length === 64) {
-    const row = await env.DB.prepare(
-      'SELECT canonical_hash FROM magmas WHERE canonical_hash = ?',
-    )
-      .bind(raw)
-      .first()
-    if (!row) return { error: 'not_found' }
-    return { hash: row.canonical_hash }
-  }
-  const { results } = await env.DB.prepare(
-    'SELECT canonical_hash FROM magmas WHERE canonical_hash LIKE ? LIMIT 2',
-  )
-    .bind(`${raw}%`)
-    .all()
+  const { op, bind } = hashWhereClause(raw)
+  const sql = `SELECT ${columnsSql} FROM magmas m ${joinsSql} WHERE ${op} LIMIT 2`
+  const { results } = await env.DB.prepare(sql).bind(bind).all()
   if (results.length === 0) return { error: 'not_found' }
   if (results.length > 1) return { error: 'ambiguous' }
-  return { hash: results[0].canonical_hash }
+  return { row: results[0] }
+}
+
+// History-page variant: resolve and fetch a multi-row history in parallel, so
+// effective latency is max(t_resolve, t_history) rather than the sum.
+// `historyStmt(op, bind)` should return a prepared+bound D1 statement.
+async function resolveAndFetchHistory(env, raw, historyStmt) {
+  if (typeof raw !== 'string' || !HASH_PREFIX_RE.test(raw)) {
+    return { error: 'malformed' }
+  }
+  const { op, bind } = hashWhereClause(raw)
+  const resolveStmt = env.DB
+    .prepare(`SELECT canonical_hash FROM magmas m WHERE ${op} LIMIT 2`)
+    .bind(bind)
+  const [resolveRes, historyRes] = await Promise.all([
+    resolveStmt.all(),
+    historyStmt(op, bind).all(),
+  ])
+  if (resolveRes.results.length === 0) return { error: 'not_found' }
+  if (resolveRes.results.length > 1) return { error: 'ambiguous' }
+  return { hash: resolveRes.results[0].canonical_hash, rows: historyRes.results }
 }
 
 const app = new Hono()
@@ -505,45 +521,35 @@ app.get('/size/:n/comments', async (c) => {
 
 app.get('/magma/:hash', async (c) => {
   const raw = c.req.param('hash')
-  const resolved = await resolveHash(c.env, raw)
-  if (resolved.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
-  if (resolved.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
-  if (resolved.error === 'ambiguous') {
+  const result = await resolveAndFetchRow(
+    c.env,
+    raw,
+    `m.id, m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative,
+     m.idempotent, m.display_reorder, m.submitted_at,
+     COALESCE(su.display_name, m.submitted_by) AS submitted_by,
+     cl.id AS comment_id, cl.content AS comment_content, cl.created_at AS comment_at,
+     cu.display_name AS comment_author`,
+    `LEFT JOIN users su ON su.id = m.submitted_by_user_id
+     LEFT JOIN comments_log cl ON cl.id = m.current_comment_id
+     LEFT JOIN users cu ON cu.id = cl.user_id`,
+  )
+  if (result.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
+  if (result.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
+  if (result.error === 'ambiguous') {
     return c.html(notFoundPage(`Ambiguous hash prefix "${raw}" — matches multiple magmas.`, c.get('user')), 400)
   }
-  const slug = canonicalPrefix(resolved.hash)
+  const row = result.row
+  const slug = canonicalPrefix(row.canonical_hash)
   if (raw !== slug) {
     return c.redirect(`/magma/${slug}`, 302)
-  }
-  const row = await c.env.DB.prepare(
-    `SELECT m.id, m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative,
-            m.idempotent, m.display_reorder, m.submitted_at,
-            COALESCE(su.display_name, m.submitted_by) AS submitted_by,
-            cl.id AS comment_id, cl.content AS comment_content, cl.created_at AS comment_at,
-            cu.display_name AS comment_author
-       FROM magmas m
-       LEFT JOIN users su ON su.id = m.submitted_by_user_id
-       LEFT JOIN comments_log cl ON cl.id = m.current_comment_id
-       LEFT JOIN users cu ON cu.id = cl.user_id
-       WHERE m.canonical_hash = ?`,
-  )
-    .bind(resolved.hash)
-    .first()
-  if (!row) {
-    return c.html(notFoundPage('No such magma.', c.get('user')), 404)
   }
   return c.html(magmaPage(row, c.get('user')))
 })
 
 app.get('/magma/:hash/image.png', async (c) => {
-  const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error) return c.notFound()
-  const row = await c.env.DB.prepare(
-    'SELECT r2_key, display_reorder FROM magmas WHERE canonical_hash = ?',
-  )
-    .bind(resolved.hash)
-    .first()
-  if (!row) return c.notFound()
+  const result = await resolveAndFetchRow(c.env, c.req.param('hash'), 'm.r2_key, m.display_reorder')
+  if (result.error) return c.notFound()
+  const row = result.row
   const obj = await c.env.BUCKET.get(row.r2_key)
   if (!obj) return c.notFound()
   const text = await obj.text()
@@ -571,14 +577,13 @@ app.get('/magma/:hash/image.png', async (c) => {
 // Reorder semantics match /image.png and /table.txt: absent → row's stored,
 // ?reorder= empty → identity, ?reorder=<value> → override.
 app.get('/magma/:hash/fme', async (c) => {
-  const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error) return c.notFound()
-  const row = await c.env.DB.prepare(
-    'SELECT r2_key, display_reorder FROM magmas WHERE canonical_hash = ?',
+  const result = await resolveAndFetchRow(
+    c.env,
+    c.req.param('hash'),
+    'm.canonical_hash, m.r2_key, m.display_reorder',
   )
-    .bind(resolved.hash)
-    .first()
-  if (!row) return c.notFound()
+  if (result.error) return c.notFound()
+  const row = result.row
   const obj = await c.env.BUCKET.get(row.r2_key)
   if (!obj) return c.notFound()
   const text = await obj.text()
@@ -598,7 +603,7 @@ app.get('/magma/:hash/fme', async (c) => {
   // shows the table for manual paste and a bare-FME link.
   const FME_URL_LIMIT = 7500
   if (url.length > FME_URL_LIMIT) {
-    return c.html(fmePastePage(resolved.hash, tableJson, fmeBase, c.get('user')))
+    return c.html(fmePastePage(row.canonical_hash, tableJson, fmeBase, c.get('user')))
   }
   return c.redirect(url, 302)
 })
@@ -650,17 +655,19 @@ app.post('/magma/:hash/display-reorder', async (c) => {
       ? c.json({ error: 'authentication required' }, 401)
       : c.redirect('/auth/github', 302)
   }
-  const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error === 'malformed') {
+  const result = await resolveAndFetchRow(c.env, c.req.param('hash'), 'm.id, m.size, m.canonical_hash')
+  if (result.error === 'malformed') {
     return isJson ? c.json({ error: 'malformed hash' }, 404) : c.notFound()
   }
-  if (resolved.error === 'not_found') {
+  if (result.error === 'not_found') {
     return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
   }
-  if (resolved.error === 'ambiguous') {
+  if (result.error === 'ambiguous') {
     return isJson ? c.json({ error: 'ambiguous hash prefix' }, 400) : c.notFound()
   }
-  const hash = resolved.hash
+  const row = result.row
+  const hash = row.canonical_hash
+  const slug = canonicalPrefix(hash)
   const declaredLen = Number(c.req.header('content-length'))
   if (Number.isFinite(declaredLen) && declaredLen > REORDER_BODY_MAX) {
     return isJson
@@ -691,13 +698,6 @@ app.post('/magma/:hash/display-reorder', async (c) => {
     const v = typeof body.display_reorder === 'string' ? body.display_reorder : ''
     incoming = v.length > 0 ? v : null
   }
-  const row = await c.env.DB.prepare(
-    'SELECT id, size FROM magmas WHERE canonical_hash = ?',
-  )
-    .bind(hash)
-    .first()
-  if (!row) return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
-  const slug = canonicalPrefix(hash)
   let stored = null
   if (incoming !== null) {
     const parsed = parseReorder(incoming, row.size)
@@ -729,27 +729,29 @@ app.post('/magma/:hash/display-reorder', async (c) => {
 })
 
 app.get('/magma/:hash/reorder-history', async (c) => {
-  const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
-  if (resolved.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
-  if (resolved.error === 'ambiguous') {
-    return c.html(notFoundPage(`Ambiguous hash prefix "${c.req.param('hash')}" — matches multiple magmas.`, c.get('user')), 400)
+  const raw = c.req.param('hash')
+  const result = await resolveAndFetchHistory(c.env, raw, (op, bind) =>
+    c.env.DB
+      .prepare(
+        `SELECT dr.id, dr.display_reorder, dr.created_at, u.display_name AS author
+           FROM display_reorder_log dr
+           LEFT JOIN users u ON u.id = dr.user_id
+           JOIN magmas m ON m.id = dr.magma_id
+           WHERE ${op}
+           ORDER BY dr.id DESC`,
+      )
+      .bind(bind),
+  )
+  if (result.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
+  if (result.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
+  if (result.error === 'ambiguous') {
+    return c.html(notFoundPage(`Ambiguous hash prefix "${raw}" — matches multiple magmas.`, c.get('user')), 400)
   }
-  const slug = canonicalPrefix(resolved.hash)
-  if (slug !== c.req.param('hash')) {
+  const slug = canonicalPrefix(result.hash)
+  if (slug !== raw) {
     return c.redirect(`/magma/${slug}/reorder-history`, 302)
   }
-  const { results } = await c.env.DB.prepare(
-    `SELECT dr.id, dr.display_reorder, dr.created_at, u.display_name AS author
-       FROM display_reorder_log dr
-       LEFT JOIN users u ON u.id = dr.user_id
-       JOIN magmas m ON m.id = dr.magma_id
-       WHERE m.canonical_hash = ?
-       ORDER BY dr.id DESC`,
-  )
-    .bind(resolved.hash)
-    .all()
-  return c.html(reorderHistoryPage(resolved.hash, results, c.get('user')))
+  return c.html(reorderHistoryPage(result.hash, result.rows, c.get('user')))
 })
 
 // Cap on the request body itself (large enough for COMMENT_MAX UTF-8 + JSON wrap).
@@ -764,16 +766,17 @@ app.post('/magma/:hash/comment', async (c) => {
       ? c.json({ error: 'authentication required' }, 401)
       : c.redirect('/auth/github', 302)
   }
-  const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error === 'malformed') {
+  const result = await resolveAndFetchRow(c.env, c.req.param('hash'), 'm.id, m.canonical_hash')
+  if (result.error === 'malformed') {
     return isJson ? c.json({ error: 'malformed hash' }, 404) : c.notFound()
   }
-  if (resolved.error === 'not_found') {
+  if (result.error === 'not_found') {
     return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
   }
-  if (resolved.error === 'ambiguous') {
+  if (result.error === 'ambiguous') {
     return isJson ? c.json({ error: 'ambiguous hash prefix' }, 400) : c.notFound()
   }
+  const magma = result.row
   const declaredLen = Number(c.req.header('content-length'))
   if (Number.isFinite(declaredLen) && declaredLen > COMMENT_BODY_MAX) {
     return isJson
@@ -804,12 +807,6 @@ app.post('/magma/:hash/comment', async (c) => {
     if (isJson) return c.json({ error: `comment exceeds ${COMMENT_MAX} chars` }, 413)
     return c.html(notFoundPage(`Comment exceeds ${COMMENT_MAX} chars.`, user), 413)
   }
-  const magma = await c.env.DB.prepare('SELECT id FROM magmas WHERE canonical_hash = ?')
-    .bind(resolved.hash)
-    .first()
-  if (!magma) {
-    return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
-  }
   const ins = await c.env.DB.prepare(
     'INSERT INTO comments_log (magma_id, user_id, content) VALUES (?, ?, ?)',
   )
@@ -821,47 +818,44 @@ app.post('/magma/:hash/comment', async (c) => {
     .run()
   if (isJson) {
     return c.json({
-      canonical_hash: resolved.hash,
+      canonical_hash: magma.canonical_hash,
       comment_id: newCommentId,
       content,
     })
   }
-  return c.redirect(`/magma/${canonicalPrefix(resolved.hash)}`, 302)
+  return c.redirect(`/magma/${canonicalPrefix(magma.canonical_hash)}`, 302)
 })
 
 app.get('/magma/:hash/comments', async (c) => {
-  const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
-  if (resolved.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
-  if (resolved.error === 'ambiguous') {
-    return c.html(notFoundPage(`Ambiguous hash prefix "${c.req.param('hash')}" — matches multiple magmas.`, c.get('user')), 400)
+  const raw = c.req.param('hash')
+  const result = await resolveAndFetchHistory(c.env, raw, (op, bind) =>
+    c.env.DB
+      .prepare(
+        `SELECT cl.id, cl.content, cl.created_at, u.display_name AS author
+           FROM comments_log cl
+           LEFT JOIN users u ON u.id = cl.user_id
+           JOIN magmas m ON m.id = cl.magma_id
+           WHERE ${op}
+           ORDER BY cl.id DESC`,
+      )
+      .bind(bind),
+  )
+  if (result.error === 'malformed') return c.html(notFoundPage('Malformed hash.', c.get('user')), 404)
+  if (result.error === 'not_found') return c.html(notFoundPage('No such magma.', c.get('user')), 404)
+  if (result.error === 'ambiguous') {
+    return c.html(notFoundPage(`Ambiguous hash prefix "${raw}" — matches multiple magmas.`, c.get('user')), 400)
   }
-  const slug = canonicalPrefix(resolved.hash)
-  if (slug !== c.req.param('hash')) {
+  const slug = canonicalPrefix(result.hash)
+  if (slug !== raw) {
     return c.redirect(`/magma/${slug}/comments`, 302)
   }
-  const { results } = await c.env.DB.prepare(
-    `SELECT cl.id, cl.content, cl.created_at, u.display_name AS author
-       FROM comments_log cl
-       LEFT JOIN users u ON u.id = cl.user_id
-       JOIN magmas m ON m.id = cl.magma_id
-       WHERE m.canonical_hash = ?
-       ORDER BY cl.id DESC`,
-  )
-    .bind(resolved.hash)
-    .all()
-  return c.html(commentHistoryPage(resolved.hash, results, c.get('user')))
+  return c.html(commentHistoryPage(result.hash, result.rows, c.get('user')))
 })
 
 app.get('/magma/:hash/table.txt', async (c) => {
-  const resolved = await resolveHash(c.env, c.req.param('hash'))
-  if (resolved.error) return c.notFound()
-  const row = await c.env.DB.prepare(
-    'SELECT r2_key FROM magmas WHERE canonical_hash = ?',
-  )
-    .bind(resolved.hash)
-    .first()
-  if (!row) return c.notFound()
+  const result = await resolveAndFetchRow(c.env, c.req.param('hash'), 'm.r2_key')
+  if (result.error) return c.notFound()
+  const row = result.row
   const obj = await c.env.BUCKET.get(row.r2_key)
   if (!obj) return c.notFound()
   const reorderQuery = c.req.query('reorder')
