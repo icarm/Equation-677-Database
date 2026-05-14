@@ -611,17 +611,29 @@ app.get('/magma/:hash/fme', async (c) => {
 const BUCKET_PUBLIC_BASE = 'https://eq677-magmas.icarm.cloud'
 
 app.get('/manifest.json', async (c) => {
-  const { results } = await c.env.DB.prepare(
-    `SELECT m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative, m.idempotent,
-            m.display_reorder, m.r2_key, m.submitted_at,
-            COALESCE(u.display_name, m.submitted_by) AS submitted_by,
-            cl.content AS comment
-       FROM magmas m
-       LEFT JOIN users u ON u.id = m.submitted_by_user_id
-       LEFT JOIN comments_log cl ON cl.id = m.current_comment_id
-       ORDER BY m.size, m.id`,
-  ).all()
-  const magmas = results.map((r) => ({
+  const [magmasRes, sizeCommentsRes] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative, m.idempotent,
+              m.display_reorder, m.r2_key, m.submitted_at,
+              COALESCE(u.display_name, m.submitted_by) AS submitted_by,
+              cl.content AS comment
+         FROM magmas m
+         LEFT JOIN users u ON u.id = m.submitted_by_user_id
+         LEFT JOIN comments_log cl ON cl.id = m.current_comment_id
+         ORDER BY m.size, m.id`,
+    ).all(),
+    c.env.DB.prepare(
+      `SELECT scl.size, scl.content AS comment
+         FROM size_comments_log scl
+         JOIN (SELECT size, MAX(id) AS max_id
+                 FROM size_comments_log
+                 GROUP BY size) latest
+           ON latest.size = scl.size AND latest.max_id = scl.id
+         WHERE scl.content != ''
+         ORDER BY scl.size`,
+    ).all(),
+  ])
+  const magmas = magmasRes.results.map((r) => ({
     canonical_hash: r.canonical_hash,
     size: r.size,
     satisfies_255: r.satisfies_255 === null ? null : Boolean(r.satisfies_255),
@@ -633,8 +645,12 @@ app.get('/manifest.json', async (c) => {
     submitted_by: r.submitted_by,
     url: `${BUCKET_PUBLIC_BASE}/${r.r2_key}`,
   }))
+  const sizeCommentary = sizeCommentsRes.results.map((r) => ({
+    size: r.size,
+    comment: r.comment,
+  }))
   return new Response(
-    JSON.stringify({ count: magmas.length, magmas }),
+    JSON.stringify({ count: magmas.length, magmas, size_commentary: sizeCommentary }),
     {
       headers: {
         'content-type': 'application/json; charset=utf-8',

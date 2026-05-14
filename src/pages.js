@@ -742,7 +742,7 @@ $ curl -X POST https://eq677.icarm.cloud/submit \\
         <section>
           <h3>Useful read endpoints</h3>
           <ul>
-            <li><a href="/manifest.json"><code>GET /manifest.json</code></a> &mdash; full list of magmas with metadata and a direct R2 download URL for each.</li>
+            <li><a href="/manifest.json"><code>GET /manifest.json</code></a> &mdash; full list of magmas with metadata and a direct R2 download URL for each, plus a <code>size_commentary</code> array of <code>{size, comment}</code> pairs for every size whose current commentary is non-empty.</li>
             <li><code>GET /magma/:hash/table.txt</code> &mdash; the canonical Cayley table as plain text.</li>
             <li><code>GET /magma/:hash/image.png</code> &mdash; rendered PNG. Optional <code>?reorder=&lt;value&gt;</code> overrides the stored permutation; <code>?reorder=</code> (empty) renders identity.</li>
             <li><code>GET /magma/:hash/comments</code> &mdash; comment edit history.</li>
