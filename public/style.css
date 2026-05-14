@@ -695,6 +695,24 @@ a.external::after {
   image-rendering: crisp-edges;
 }
 
+.recent-size-thumb {
+  text-decoration: none;
+}
+
+.recent-size-badge {
+  display: flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 .recent-info {
   min-width: 0;
   flex: 1;

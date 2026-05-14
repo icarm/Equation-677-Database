@@ -1,4 +1,4 @@
-import { COMMENT_MAX } from './magma.js'
+import { COMMENT_MAX, MAX_SIZE } from './magma.js'
 
 // FNV-1a 32-bit hash → 8 hex chars. Used as a cache-busting version token
 // for image URLs that depend on display_reorder. NULL/empty → '0'.
@@ -39,20 +39,19 @@ function pageHead({ topLinks = [], title, subtitle }) {
       ${sub}`
 }
 
-function commentSection(row, user) {
-  const hash = row.canonical_hash
-  const hasComment = row.comment_content && row.comment_content.length > 0
-  const meta = row.comment_id
-    ? `<p class="comment-meta">last edited ${row.comment_author ? `by ${escapeHtml(row.comment_author)} ` : ''}at ${escapeHtml(row.comment_at)} &middot; <a href="/magma/${hash}/comments">history</a></p>`
+function commentSection({ comment, postUrl, historyUrl, user }) {
+  const hasComment = comment && comment.content && comment.content.length > 0
+  const meta = comment && comment.id
+    ? `<p class="comment-meta">last edited ${comment.author ? `by ${escapeHtml(comment.author)} ` : ''}at ${escapeHtml(comment.created_at)} &middot; <a href="${historyUrl}">history</a></p>`
     : ''
   const display = hasComment
-    ? `<div class="comment-body">${escapeHtml(row.comment_content)}</div>`
+    ? `<div class="comment-body">${escapeHtml(comment.content)}</div>`
     : `<p class="muted">No commentary yet.</p>`
   const editor = user
     ? `<details class="comment-edit">
         <summary>edit</summary>
-        <form method="post" action="/magma/${hash}/comment">
-          <textarea name="content" rows="6" maxlength="${COMMENT_MAX}">${escapeHtml(row.comment_content || '')}</textarea>
+        <form method="post" action="${postUrl}">
+          <textarea name="content" rows="6" maxlength="${COMMENT_MAX}">${escapeHtml((comment && comment.content) || '')}</textarea>
           <div><button type="submit">save</button> <span class="muted">submit empty to clear</span></div>
         </form>
       </details>`
@@ -188,7 +187,7 @@ export function allPage(items, user = null) {
   return layout('All — Equation 677 Database', inner, user)
 }
 
-export function sizePage(n, items, user = null) {
+export function sizePage(n, items, comment = null, user = null) {
   const thumbs = items
     .map((it) => {
       const h = it.canonical_hash
@@ -201,10 +200,19 @@ export function sizePage(n, items, user = null) {
     title: `Size ${n}`,
     subtitle: `${items.length} isomorphism class${items.length === 1 ? '' : 'es'}.`,
   })
-  const inner = `${head}
-      <div class="thumb-grid">
+  const grid = items.length
+    ? `<div class="thumb-grid">
       ${thumbs}
       </div>`
+    : `<p class="muted">No magmas of this size are in the database yet.</p>`
+  const inner = `${head}
+      ${grid}
+      ${commentSection({
+        comment,
+        postUrl: `/size/${n}/comment`,
+        historyUrl: `/size/${n}/comments`,
+        user,
+      })}`
   return layout(`Size ${n} — Equation 677 Database`, inner, user)
 }
 
@@ -268,7 +276,19 @@ export function magmaPage(row, user = null) {
           <a class="external" href="/magma/${hash}/fme" target="_blank" rel="noopener noreferrer">Finite Magma Explorer</a>
         </dd>
       </dl>
-      ${commentSection(row, user)}`
+      ${commentSection({
+        comment: row.comment_id
+          ? {
+              id: row.comment_id,
+              content: row.comment_content,
+              created_at: row.comment_at,
+              author: row.comment_author,
+            }
+          : null,
+        postUrl: `/magma/${hash}/comment`,
+        historyUrl: `/magma/${hash}/comments`,
+        user,
+      })}`
   return layout(`Magma ${short} — Equation 677 Database`, inner, user)
 }
 
@@ -373,9 +393,33 @@ export function recentPage(items, page, hasNext, user = null) {
     title: 'Recent activity',
   })
   const COMMENT_PREVIEW = 120
+  const commentPreview = (content) => {
+    if (content.length === 0) return null
+    return content.length > COMMENT_PREVIEW
+      ? content.slice(0, COMMENT_PREVIEW).trimEnd() + '…'
+      : content
+  }
   const list = items.length
     ? items
         .map((it) => {
+          const author = it.author
+            ? escapeHtml(it.author)
+            : `<span class="muted">(anonymous)</span>`
+          if (it.kind === 'size_comment') {
+            const content = it.detail || ''
+            const preview = commentPreview(content)
+            const desc = preview === null
+              ? `Commentary cleared`
+              : `Commentary: ${escapeHtml(preview)}`
+            const badge = `<span class="recent-size-badge">n=${it.size}</span>`
+            return `<li class="recent-item">
+        <a class="recent-thumb recent-size-thumb" href="/size/${it.size}">${badge}</a>
+        <div class="recent-info">
+          <div class="recent-desc"><a href="/size/${it.size}">size ${it.size}</a> &middot; ${desc}</div>
+          <div class="recent-meta">${escapeHtml(it.at)} &middot; ${author}</div>
+        </div>
+      </li>`
+          }
           const short = it.hash.slice(0, 8)
           const reorderQ = it.hash_reorder ? encodeURIComponent(it.hash_reorder) : ''
           const thumb = `<img src="/magma/${it.hash}/image.png?reorder=${reorderQ}" width="64" height="64" alt="magma ${escapeHtml(short)}" loading="lazy" />`
@@ -388,18 +432,9 @@ export function recentPage(items, page, hasNext, user = null) {
               : `Reorder reset to identity`
           } else {
             const content = it.detail || ''
-            if (content === '') {
-              desc = `Comment cleared`
-            } else {
-              const preview = content.length > COMMENT_PREVIEW
-                ? content.slice(0, COMMENT_PREVIEW).trimEnd() + '…'
-                : content
-              desc = `Comment: ${escapeHtml(preview)}`
-            }
+            const preview = commentPreview(content)
+            desc = preview === null ? `Comment cleared` : `Comment: ${escapeHtml(preview)}`
           }
-          const author = it.author
-            ? escapeHtml(it.author)
-            : `<span class="muted">(anonymous)</span>`
           return `<li class="recent-item">
         <a class="recent-thumb" href="/magma/${it.hash}">${thumb}</a>
         <div class="recent-info">
@@ -512,6 +547,20 @@ export function reorderHistoryPage(hash, entries, user = null) {
   return layout(`Reorder history ${short} — Equation 677 Database`, inner, user)
 }
 
+function renderCommentHistoryList(entries) {
+  if (!entries.length) return `<li class="muted">No comments yet.</li>`
+  return entries
+    .map(
+      (e) => `<li>
+        <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(deleted user)</span>'} &middot; ${escapeHtml(e.created_at)}</p>
+        ${e.content && e.content.length > 0
+          ? `<div class="comment-body">${escapeHtml(e.content)}</div>`
+          : `<p class="muted">(cleared)</p>`}
+      </li>`,
+    )
+    .join('\n')
+}
+
 export function commentHistoryPage(hash, entries, user = null) {
   const short = hash.slice(0, 12)
   const head = pageHead({
@@ -519,21 +568,20 @@ export function commentHistoryPage(hash, entries, user = null) {
     title: 'Commentary history',
     subtitle: `${entries.length} edit${entries.length === 1 ? '' : 's'}.`,
   })
-  const items = entries.length
-    ? entries
-        .map(
-          (e) => `<li>
-        <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(deleted user)</span>'} &middot; ${escapeHtml(e.created_at)}</p>
-        ${e.content && e.content.length > 0
-          ? `<div class="comment-body">${escapeHtml(e.content)}</div>`
-          : `<p class="muted">(cleared)</p>`}
-      </li>`,
-        )
-        .join('\n')
-    : `<li class="muted">No comments yet.</li>`
   const inner = `${head}
-      <ul class="comment-history">${items}</ul>`
+      <ul class="comment-history">${renderCommentHistoryList(entries)}</ul>`
   return layout(`Commentary history ${short} — Equation 677 Database`, inner, user)
+}
+
+export function sizeCommentHistoryPage(n, entries, user = null) {
+  const head = pageHead({
+    topLinks: [[`/size/${n}`, `&larr; size ${n}`]],
+    title: `Size ${n} commentary history`,
+    subtitle: `${entries.length} edit${entries.length === 1 ? '' : 's'}.`,
+  })
+  const inner = `${head}
+      <ul class="comment-history">${renderCommentHistoryList(entries)}</ul>`
+  return layout(`Size ${n} commentary history — Equation 677 Database`, inner, user)
 }
 
 export function apiDocsPage(user = null) {
@@ -618,6 +666,29 @@ $ curl -X POST https://eq677.icarm.cloud/submit \\
         </section>
 
         <section>
+          <h3>POST /size/:n/comment</h3>
+          <p>Replace the size-level commentary for size <code>:n</code> (an integer in <code>[1, ${MAX_SIZE}]</code>). Each call appends an entry to the size-comment history; sizes without any submitted magmas may still be commented on.</p>
+          <ul>
+            <li>Auth: required</li>
+            <li>Max content: ${COMMENT_MAX} characters</li>
+            <li>Empty content clears the commentary (still logged as a clear edit)</li>
+          </ul>
+          <p>JSON form (<code>Content-Type: application/json</code>):</p>
+          <pre><code>{ "content": "no example known of this size yet" }</code></pre>
+          <p>Returns:</p>
+          <pre><code>{
+  "size": 5,
+  "comment_id": 9,
+  "content": "no example known of this size yet"
+}</code></pre>
+          <p>Form-encoded (<code>application/x-www-form-urlencoded</code>): <code>content=...</code> &mdash; on success, redirects (302) to <code>/size/:n</code>.</p>
+          <pre><code>$ curl -X POST https://eq677.icarm.cloud/size/5/comment \\
+       -H 'authorization: Bearer eq677_&lt;token&gt;' \\
+       -H 'content-type: application/json' \\
+       -d '{"content":"no example known of this size yet"}'</code></pre>
+        </section>
+
+        <section>
           <h3>POST /magma/:hash/display-reorder</h3>
           <p>Set the visualization permutation σ used when rendering this magma's image. The canonical labeling is unchanged; the reorder is display-only and tracked in a separate history. Each call appends to that history.</p>
           <ul>
@@ -647,6 +718,7 @@ $ curl -X POST https://eq677.icarm.cloud/submit \\
             <li><code>GET /magma/:hash/image.png</code> &mdash; rendered PNG. Optional <code>?reorder=&lt;value&gt;</code> overrides the stored permutation; <code>?reorder=</code> (empty) renders identity.</li>
             <li><code>GET /magma/:hash/comments</code> &mdash; comment edit history.</li>
             <li><code>GET /magma/:hash/reorder-history</code> &mdash; display-reorder edit history.</li>
+            <li><code>GET /size/:n/comments</code> &mdash; size-level commentary edit history.</li>
           </ul>
         </section>
       </div>`

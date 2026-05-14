@@ -9,6 +9,7 @@ import {
   applyReorder,
   sha256Hex,
   COMMENT_MAX,
+  MAX_SIZE,
 } from './magma.js'
 import { magmaToPng, parseCanonicalText } from './png.js'
 import {
@@ -21,6 +22,7 @@ import {
   notFoundPage,
   profilePage,
   commentHistoryPage,
+  sizeCommentHistoryPage,
   reorderHistoryPage,
   apiDocsPage,
   fmePastePage,
@@ -318,10 +320,11 @@ app.get('/', async (c) => {
   return c.html(landingPage(results, c.get('user')))
 })
 
-// Combined activity feed: new magmas, reorder edits, and comments, newest first.
-// Reorder entries with no user (migration-prepopulated rows or the
-// identity/seed rows inserted by submitMagma) are filtered out — they don't
-// represent user-initiated activity. Comments are always user-initiated.
+// Combined activity feed: new magmas, reorder edits, comments, and size-level
+// commentary, newest first. Reorder entries with no user (migration-prepopulated
+// rows or the identity/seed rows inserted by submitMagma) are filtered out —
+// they don't represent user-initiated activity. Comments are always
+// user-initiated.
 app.get('/recent', async (c) => {
   const PAGE_SIZE = 20
   const rawPage = Number(c.req.query('page'))
@@ -330,7 +333,7 @@ app.get('/recent', async (c) => {
   // running a separate COUNT.
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM (
-       SELECT 'magma' AS kind, m.submitted_at AS at, m.id AS magma_id,
+       SELECT 'magma' AS kind, m.submitted_at AS at, m.id AS row_id,
               m.canonical_hash AS hash, m.display_reorder AS hash_reorder,
               m.size AS size,
               COALESCE(u.display_name, m.submitted_by) AS author,
@@ -338,7 +341,7 @@ app.get('/recent', async (c) => {
          FROM magmas m
          LEFT JOIN users u ON u.id = m.submitted_by_user_id
        UNION ALL
-       SELECT 'reorder' AS kind, dr.created_at AS at, dr.magma_id AS magma_id,
+       SELECT 'reorder' AS kind, dr.created_at AS at, dr.id AS row_id,
               m.canonical_hash AS hash, m.display_reorder AS hash_reorder,
               m.size AS size, u.display_name AS author,
               dr.display_reorder AS detail
@@ -347,15 +350,22 @@ app.get('/recent', async (c) => {
          LEFT JOIN users u ON u.id = dr.user_id
          WHERE dr.user_id IS NOT NULL
        UNION ALL
-       SELECT 'comment' AS kind, cl.created_at AS at, cl.magma_id AS magma_id,
+       SELECT 'comment' AS kind, cl.created_at AS at, cl.id AS row_id,
               m.canonical_hash AS hash, m.display_reorder AS hash_reorder,
               m.size AS size, u.display_name AS author,
               cl.content AS detail
          FROM comments_log cl
          JOIN magmas m ON m.id = cl.magma_id
          LEFT JOIN users u ON u.id = cl.user_id
+       UNION ALL
+       SELECT 'size_comment' AS kind, scl.created_at AS at, scl.id AS row_id,
+              NULL AS hash, NULL AS hash_reorder,
+              scl.size AS size, u.display_name AS author,
+              scl.content AS detail
+         FROM size_comments_log scl
+         LEFT JOIN users u ON u.id = scl.user_id
      )
-     ORDER BY at DESC, magma_id DESC
+     ORDER BY at DESC, row_id DESC
      LIMIT ? OFFSET ?`,
   )
     .bind(PAGE_SIZE + 1, (page - 1) * PAGE_SIZE)
@@ -381,18 +391,100 @@ app.get('/all', async (c) => {
 
 app.get('/size/:n', async (c) => {
   const n = Number(c.req.param('n'))
-  if (!Number.isInteger(n) || n < 1) {
+  if (!Number.isInteger(n) || n < 1 || n > MAX_SIZE) {
+    return c.html(notFoundPage(`Bad size: ${c.req.param('n')}`, c.get('user')), 404)
+  }
+  const [magmasResult, comment] = await Promise.all([
+    c.env.DB.prepare(
+      'SELECT canonical_hash, display_reorder FROM magmas WHERE size = ? ORDER BY id',
+    )
+      .bind(n)
+      .all(),
+    c.env.DB.prepare(
+      `SELECT cl.id, cl.content, cl.created_at, u.display_name AS author
+         FROM size_comments_log cl
+         LEFT JOIN users u ON u.id = cl.user_id
+         WHERE cl.size = ?
+         ORDER BY cl.id DESC
+         LIMIT 1`,
+    )
+      .bind(n)
+      .first(),
+  ])
+  return c.html(sizePage(n, magmasResult.results, comment, c.get('user')))
+})
+
+app.post('/size/:n/comment', async (c) => {
+  const user = c.get('user')
+  const ct = (c.req.header('content-type') || '').toLowerCase()
+  const isJson = ct.startsWith('application/json')
+  if (!user) {
+    return isJson
+      ? c.json({ error: 'authentication required' }, 401)
+      : c.redirect('/auth/github', 302)
+  }
+  const n = Number(c.req.param('n'))
+  if (!Number.isInteger(n) || n < 1 || n > MAX_SIZE) {
+    return isJson
+      ? c.json({ error: `size must be an integer in [1, ${MAX_SIZE}]` }, 404)
+      : c.html(notFoundPage(`Bad size: ${c.req.param('n')}`, user), 404)
+  }
+  const declaredLen = Number(c.req.header('content-length'))
+  if (Number.isFinite(declaredLen) && declaredLen > COMMENT_BODY_MAX) {
+    return isJson
+      ? c.json({ error: `body exceeds ${COMMENT_BODY_MAX} bytes` }, 413)
+      : c.html(notFoundPage(`Body exceeds ${COMMENT_BODY_MAX} bytes.`, user), 413)
+  }
+  let content
+  if (isJson) {
+    const raw = await c.req.text()
+    if (raw.length > COMMENT_BODY_MAX) {
+      return c.json({ error: `body exceeds ${COMMENT_BODY_MAX} bytes` }, 413)
+    }
+    let body
+    try {
+      body = JSON.parse(raw)
+    } catch {
+      return c.json({ error: 'body must be JSON' }, 400)
+    }
+    if (typeof body !== 'object' || body === null || typeof body.content !== 'string') {
+      return c.json({ error: 'body must be { "content": string }' }, 400)
+    }
+    content = body.content
+  } else {
+    const body = await c.req.parseBody()
+    content = typeof body.content === 'string' ? body.content : ''
+  }
+  if (content.length > COMMENT_MAX) {
+    if (isJson) return c.json({ error: `comment exceeds ${COMMENT_MAX} chars` }, 413)
+    return c.html(notFoundPage(`Comment exceeds ${COMMENT_MAX} chars.`, user), 413)
+  }
+  const ins = await c.env.DB.prepare(
+    'INSERT INTO size_comments_log (size, user_id, content) VALUES (?, ?, ?)',
+  )
+    .bind(n, user.id, content)
+    .run()
+  if (isJson) {
+    return c.json({ size: n, comment_id: ins.meta.last_row_id, content })
+  }
+  return c.redirect(`/size/${n}`, 302)
+})
+
+app.get('/size/:n/comments', async (c) => {
+  const n = Number(c.req.param('n'))
+  if (!Number.isInteger(n) || n < 1 || n > MAX_SIZE) {
     return c.html(notFoundPage(`Bad size: ${c.req.param('n')}`, c.get('user')), 404)
   }
   const { results } = await c.env.DB.prepare(
-    'SELECT canonical_hash, display_reorder FROM magmas WHERE size = ? ORDER BY id',
+    `SELECT cl.id, cl.content, cl.created_at, u.display_name AS author
+       FROM size_comments_log cl
+       LEFT JOIN users u ON u.id = cl.user_id
+       WHERE cl.size = ?
+       ORDER BY cl.id DESC`,
   )
     .bind(n)
     .all()
-  if (results.length === 0) {
-    return c.html(notFoundPage(`No magmas of size ${n}.`, c.get('user')), 404)
-  }
-  return c.html(sizePage(n, results, c.get('user')))
+  return c.html(sizeCommentHistoryPage(n, results, c.get('user')))
 })
 
 app.get('/magma/:hash', async (c) => {
