@@ -154,7 +154,7 @@ export function bySizePage(sizes, user = null) {
   const rows = sizes
     .map((s) => {
       const cls = s.count > 0 ? 'count' : 'count muted'
-      return `<li><a href="/size/${s.size}">size ${s.size}</a> <span class="${cls}">(${s.count})</span></li>`
+      return `<li><a href="/size/${s.size}">${s.size}</a> <span class="${cls}">(${s.count})</span></li>`
     })
     .join('\n      ')
   const head = pageHead({
