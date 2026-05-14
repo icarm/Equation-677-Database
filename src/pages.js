@@ -93,7 +93,7 @@ function layout(title, bodyInner, user) {
       </div>
     </header>
     <main>${bodyInner}</main>
-    <footer><a href="/api">API</a> &nbsp;&middot;&nbsp; <a href="https://github.com/icarm/Equation-677-Database">source</a> &nbsp;&middot;&nbsp; <a href="https://icarm.io">icarm.io</a></footer>
+    <footer><a href="/api">API</a> &nbsp;&middot;&nbsp; <a class="external" href="https://github.com/icarm/Equation-677-Database">source</a> &nbsp;&middot;&nbsp; <a class="external" href="https://icarm.io">icarm.io</a></footer>
   </body>
 </html>
 `
