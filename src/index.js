@@ -379,7 +379,12 @@ app.get('/by-size', async (c) => {
   const { results } = await c.env.DB.prepare(
     'SELECT size, COUNT(*) AS count FROM magmas GROUP BY size ORDER BY size',
   ).all()
-  return c.html(bySizePage(results, c.get('user')))
+  const counts = new Map(results.map((r) => [r.size, r.count]))
+  const rows = []
+  for (let i = 1; i <= MAX_SIZE; i++) {
+    rows.push({ size: i, count: counts.get(i) || 0 })
+  }
+  return c.html(bySizePage(rows, c.get('user')))
 })
 
 app.get('/all', async (c) => {

@@ -150,15 +150,17 @@ export function landingPage(samples = [], user = null) {
 
 export function bySizePage(sizes, user = null) {
   const total = sizes.reduce((acc, s) => acc + s.count, 0)
+  const populated = sizes.reduce((acc, s) => acc + (s.count > 0 ? 1 : 0), 0)
   const rows = sizes
-    .map(
-      (s) => `<li><a href="/size/${s.size}">size ${s.size}</a> <span class="count">(${s.count})</span></li>`,
-    )
+    .map((s) => {
+      const cls = s.count > 0 ? 'count' : 'count muted'
+      return `<li><a href="/size/${s.size}">size ${s.size}</a> <span class="${cls}">(${s.count})</span></li>`
+    })
     .join('\n      ')
   const head = pageHead({
     topLinks: [['/all', '&larr; all']],
     title: 'By size',
-    subtitle: `${total} isomorphism class${total === 1 ? '' : 'es'} across ${sizes.length} size${sizes.length === 1 ? '' : 's'}. <a href="/manifest.json" download>Manifest (JSON) &darr;</a>`,
+    subtitle: `${total} isomorphism class${total === 1 ? '' : 'es'} across ${populated} populated size${populated === 1 ? '' : 's'} (of ${sizes.length}). <a href="/manifest.json" download>Manifest (JSON) &darr;</a>`,
   })
   const inner = `${head}
       <ul class="size-list">
