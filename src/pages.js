@@ -26,6 +26,24 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
+// Render user-provided commentary text as HTML. Like escapeHtml, but also
+// turns `magma#<hex>` tokens (1–64 lowercase hex chars) into anchor tags
+// pointing at the matching magma page. The hex chars are safe to inline
+// directly into both href and link text without further escaping.
+function renderCommentContent(content) {
+  if (!content) return ''
+  let out = ''
+  let lastIdx = 0
+  for (const m of content.matchAll(/magma#([0-9a-f]{1,64})/g)) {
+    out += escapeHtml(content.slice(lastIdx, m.index))
+    const hash = m[1]
+    out += `<a href="/magma/${hash}">magma#${hash}</a>`
+    lastIdx = m.index + m[0].length
+  }
+  out += escapeHtml(content.slice(lastIdx))
+  return out
+}
+
 function pageHead({ topLinks = [], title, subtitle }) {
   const top = topLinks.length
     ? `<p class="page-nav">${topLinks
@@ -45,7 +63,7 @@ function commentSection({ comment, postUrl, historyUrl, user }) {
     ? `<p class="comment-meta">last edited ${comment.author ? `by ${escapeHtml(comment.author)} ` : ''}at ${escapeHtml(comment.created_at)} &middot; <a href="${historyUrl}">history</a></p>`
     : ''
   const display = hasComment
-    ? `<div class="comment-body">${escapeHtml(comment.content)}</div>`
+    ? `<div class="comment-body">${renderCommentContent(comment.content)}</div>`
     : `<p class="muted">No commentary yet.</p>`
   const editor = user
     ? `<details class="comment-edit">
@@ -414,7 +432,7 @@ export function recentPage(items, page, hasNext, user = null) {
             const preview = commentPreview(content)
             const desc = preview === null
               ? `Commentary cleared`
-              : `Commentary: ${escapeHtml(preview)}`
+              : `Commentary: ${renderCommentContent(preview)}`
             const badge = `<span class="recent-size-badge">n=${it.size}</span>`
             return `<li class="recent-item">
         <a class="recent-thumb recent-size-thumb" href="/size/${it.size}">${badge}</a>
@@ -437,7 +455,7 @@ export function recentPage(items, page, hasNext, user = null) {
           } else {
             const content = it.detail || ''
             const preview = commentPreview(content)
-            desc = preview === null ? `Comment cleared` : `Comment: ${escapeHtml(preview)}`
+            desc = preview === null ? `Comment cleared` : `Comment: ${renderCommentContent(preview)}`
           }
           return `<li class="recent-item">
         <a class="recent-thumb" href="/magma/${it.hash}">${thumb}</a>
@@ -558,7 +576,7 @@ function renderCommentHistoryList(entries) {
       (e) => `<li>
         <p class="comment-meta">${e.author ? escapeHtml(e.author) : '<span class="muted">(deleted user)</span>'} &middot; ${escapeHtml(e.created_at)}</p>
         ${e.content && e.content.length > 0
-          ? `<div class="comment-body">${escapeHtml(e.content)}</div>`
+          ? `<div class="comment-body">${renderCommentContent(e.content)}</div>`
           : `<p class="muted">(cleared)</p>`}
       </li>`,
     )
@@ -653,6 +671,7 @@ $ curl -X POST https://eq677.icarm.cloud/submit \\
             <li>Auth: required</li>
             <li>Max content: ${COMMENT_MAX} characters</li>
             <li>Empty content clears the comment (still logged as a clear edit)</li>
+            <li>When rendered, tokens of the form <code>magma#&lt;hex&gt;</code> (1&ndash;64 lowercase hex chars) become links to <code>/magma/&lt;hex&gt;</code>. No other markup is interpreted; everything else is escaped as plain text.</li>
           </ul>
           <p>JSON form (<code>Content-Type: application/json</code>):</p>
           <pre><code>{ "content": "this is a quasigroup" }</code></pre>
@@ -676,6 +695,7 @@ $ curl -X POST https://eq677.icarm.cloud/submit \\
             <li>Auth: required</li>
             <li>Max content: ${COMMENT_MAX} characters</li>
             <li>Empty content clears the commentary (still logged as a clear edit)</li>
+            <li>When rendered, tokens of the form <code>magma#&lt;hex&gt;</code> (1&ndash;64 lowercase hex chars) become links to <code>/magma/&lt;hex&gt;</code>. No other markup is interpreted; everything else is escaped as plain text.</li>
           </ul>
           <p>JSON form (<code>Content-Type: application/json</code>):</p>
           <pre><code>{ "content": "no example known of this size yet" }</code></pre>
