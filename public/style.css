@@ -419,6 +419,19 @@ main h2 + .page-subtitle {
   text-decoration: underline;
 }
 
+.size-list a.populated {
+  font-weight: 700;
+}
+
+.size-list a.empty {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.size-list a.empty:hover {
+  color: var(--accent);
+}
+
 .size-list .count {
   color: var(--muted);
   font-size: 0.9rem;

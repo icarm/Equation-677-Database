@@ -153,8 +153,10 @@ export function bySizePage(sizes, user = null) {
   const populated = sizes.reduce((acc, s) => acc + (s.count > 0 ? 1 : 0), 0)
   const rows = sizes
     .map((s) => {
-      const cls = s.count > 0 ? 'count' : 'count muted'
-      return `<li><a href="/size/${s.size}">${s.size}</a> <span class="${cls}">(${s.count})</span></li>`
+      const populated = s.count > 0
+      const linkCls = populated ? 'size-link populated' : 'size-link empty'
+      const countCls = populated ? 'count' : 'count muted'
+      return `<li><a class="${linkCls}" href="/size/${s.size}">${s.size}</a> <span class="${countCls}">(${s.count})</span></li>`
     })
     .join('\n      ')
   const head = pageHead({
