@@ -49,6 +49,17 @@ async function resolveHash(env, raw) {
   if (typeof raw !== 'string' || !HASH_PREFIX_RE.test(raw)) {
     return { error: 'malformed' }
   }
+  // D1's LIKE pattern length is capped at 50; a 64-char hash plus '%' exceeds
+  // that, so use exact equality when the input is already a full hash.
+  if (raw.length === 64) {
+    const row = await env.DB.prepare(
+      'SELECT canonical_hash FROM magmas WHERE canonical_hash = ?',
+    )
+      .bind(raw)
+      .first()
+    if (!row) return { error: 'not_found' }
+    return { hash: row.canonical_hash }
+  }
   const { results } = await env.DB.prepare(
     'SELECT canonical_hash FROM magmas WHERE canonical_hash LIKE ? LIMIT 2',
   )
