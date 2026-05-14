@@ -437,6 +437,14 @@ main h2 + .page-subtitle {
   font-size: 0.9rem;
 }
 
+.size-list .commentary-marker {
+  color: var(--accent);
+  opacity: 0.7;
+  margin-left: 0.15em;
+  font-size: 0.85rem;
+  vertical-align: 0.05em;
+}
+
 .thumb-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));

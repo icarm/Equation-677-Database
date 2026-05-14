@@ -174,7 +174,10 @@ export function bySizePage(sizes, user = null) {
       const populated = s.count > 0
       const linkCls = populated ? 'size-link populated' : 'size-link empty'
       const countCls = populated ? 'count' : 'count muted'
-      return `<li><a class="${linkCls}" href="/size/${s.size}">${s.size}</a> <span class="${countCls}">(${s.count})</span></li>`
+      const marker = s.hasCommentary
+        ? `<span class="commentary-marker" title="has commentary" aria-label="has commentary">&bull;</span>`
+        : ''
+      return `<li><a class="${linkCls}" href="/size/${s.size}">${s.size}</a> <span class="${countCls}">(${s.count})</span>${marker}</li>`
     })
     .join('\n      ')
   const head = pageHead({

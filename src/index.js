@@ -403,13 +403,25 @@ app.get('/recent', async (c) => {
 })
 
 app.get('/by-size', async (c) => {
-  const { results } = await c.env.DB.prepare(
-    'SELECT size, COUNT(*) AS count FROM magmas GROUP BY size ORDER BY size',
-  ).all()
-  const counts = new Map(results.map((r) => [r.size, r.count]))
+  const [countsRes, commentaryRes] = await Promise.all([
+    c.env.DB.prepare(
+      'SELECT size, COUNT(*) AS count FROM magmas GROUP BY size ORDER BY size',
+    ).all(),
+    c.env.DB.prepare(
+      `SELECT scl.size
+         FROM size_comments_log scl
+         JOIN (SELECT size, MAX(id) AS max_id
+                 FROM size_comments_log
+                 GROUP BY size) latest
+           ON latest.size = scl.size AND latest.max_id = scl.id
+         WHERE scl.content != ''`,
+    ).all(),
+  ])
+  const counts = new Map(countsRes.results.map((r) => [r.size, r.count]))
+  const hasCommentary = new Set(commentaryRes.results.map((r) => r.size))
   const rows = []
   for (let i = 1; i <= MAX_SIZE; i++) {
-    rows.push({ size: i, count: counts.get(i) || 0 })
+    rows.push({ size: i, count: counts.get(i) || 0, hasCommentary: hasCommentary.has(i) })
   }
   return c.html(bySizePage(rows, c.get('user')))
 })
