@@ -8,6 +8,7 @@ import {
   parseReorder,
   applyReorder,
   sha256Hex,
+  canonicalPrefix,
   COMMENT_MAX,
   MAX_SIZE,
 } from './magma.js'
@@ -48,7 +49,6 @@ async function resolveHash(env, raw) {
   if (typeof raw !== 'string' || !HASH_PREFIX_RE.test(raw)) {
     return { error: 'malformed' }
   }
-  if (raw.length === 64) return { hash: raw }
   const { results } = await env.DB.prepare(
     'SELECT canonical_hash FROM magmas WHERE canonical_hash LIKE ? LIMIT 2',
   )
@@ -308,7 +308,7 @@ app.post('/submit-form', async (c) => {
   const submitter = user.display_name || user.email || `user-${user.id}`
   const result = await submitMagma(raw, submitter, user.id, c.env)
   if (result.kind === 'ok') {
-    return c.redirect(`/magma/${result.hash}`, 302)
+    return c.redirect(`/magma/${canonicalPrefix(result.hash)}`, 302)
   }
   return c.html(submitResultPage(result, user))
 })
@@ -500,8 +500,9 @@ app.get('/magma/:hash', async (c) => {
   if (resolved.error === 'ambiguous') {
     return c.html(notFoundPage(`Ambiguous hash prefix "${raw}" — matches multiple magmas.`, c.get('user')), 400)
   }
-  if (resolved.hash !== raw) {
-    return c.redirect(`/magma/${resolved.hash}`, 302)
+  const slug = canonicalPrefix(resolved.hash)
+  if (raw !== slug) {
+    return c.redirect(`/magma/${slug}`, 302)
   }
   const row = await c.env.DB.prepare(
     `SELECT m.id, m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative,
@@ -685,6 +686,7 @@ app.post('/magma/:hash/display-reorder', async (c) => {
     .bind(hash)
     .first()
   if (!row) return isJson ? c.json({ error: 'no such magma' }, 404) : c.notFound()
+  const slug = canonicalPrefix(hash)
   let stored = null
   if (incoming !== null) {
     const parsed = parseReorder(incoming, row.size)
@@ -693,7 +695,7 @@ app.post('/magma/:hash/display-reorder', async (c) => {
         ? c.json({ error: parsed.error }, 400)
         : c.html(
             notFoundPage(parsed.error, user, {
-              href: `/magma/${hash}`,
+              href: `/magma/${slug}`,
               label: '&larr; back to magma',
             }),
             400,
@@ -712,7 +714,7 @@ app.post('/magma/:hash/display-reorder', async (c) => {
   if (isJson) {
     return c.json({ canonical_hash: hash, display_reorder: stored })
   }
-  return c.redirect(`/magma/${hash}/reorder-history`, 302)
+  return c.redirect(`/magma/${slug}/reorder-history`, 302)
 })
 
 app.get('/magma/:hash/reorder-history', async (c) => {
@@ -722,8 +724,9 @@ app.get('/magma/:hash/reorder-history', async (c) => {
   if (resolved.error === 'ambiguous') {
     return c.html(notFoundPage(`Ambiguous hash prefix "${c.req.param('hash')}" — matches multiple magmas.`, c.get('user')), 400)
   }
-  if (resolved.hash !== c.req.param('hash')) {
-    return c.redirect(`/magma/${resolved.hash}/reorder-history`, 302)
+  const slug = canonicalPrefix(resolved.hash)
+  if (slug !== c.req.param('hash')) {
+    return c.redirect(`/magma/${slug}/reorder-history`, 302)
   }
   const { results } = await c.env.DB.prepare(
     `SELECT dr.id, dr.display_reorder, dr.created_at, u.display_name AS author
@@ -812,7 +815,7 @@ app.post('/magma/:hash/comment', async (c) => {
       content,
     })
   }
-  return c.redirect(`/magma/${resolved.hash}`, 302)
+  return c.redirect(`/magma/${canonicalPrefix(resolved.hash)}`, 302)
 })
 
 app.get('/magma/:hash/comments', async (c) => {
@@ -822,8 +825,9 @@ app.get('/magma/:hash/comments', async (c) => {
   if (resolved.error === 'ambiguous') {
     return c.html(notFoundPage(`Ambiguous hash prefix "${c.req.param('hash')}" — matches multiple magmas.`, c.get('user')), 400)
   }
-  if (resolved.hash !== c.req.param('hash')) {
-    return c.redirect(`/magma/${resolved.hash}/comments`, 302)
+  const slug = canonicalPrefix(resolved.hash)
+  if (slug !== c.req.param('hash')) {
+    return c.redirect(`/magma/${slug}/comments`, 302)
   }
   const { results } = await c.env.DB.prepare(
     `SELECT cl.id, cl.content, cl.created_at, u.display_name AS author

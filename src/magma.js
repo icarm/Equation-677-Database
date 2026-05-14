@@ -1,6 +1,13 @@
 export const MAX_SIZE = 1000
 export const COMMENT_MAX = 4096
 
+// Canonical magma URLs use this many hex chars (half of the full sha256). The
+// underlying isomorphism-class hash is still the full 64-char sha256; this is
+// purely a URL-length compromise. 128 bits of identifier remains far more than
+// enough to make collisions impossible in practice.
+export const CANONICAL_PREFIX_LEN = 32
+export const canonicalPrefix = (hash) => hash.slice(0, CANONICAL_PREFIX_LEN)
+
 // Parse a Cayley table into a 2D int array.
 // Accepts either:
 //   - eq677's native whitespace/comma-separated text (n lines of n integers), or

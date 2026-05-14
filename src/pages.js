@@ -1,4 +1,4 @@
-import { COMMENT_MAX, MAX_SIZE } from './magma.js'
+import { COMMENT_MAX, MAX_SIZE, canonicalPrefix } from './magma.js'
 
 // FNV-1a 32-bit hash → 8 hex chars. Used as a cache-busting version token
 // for image URLs that depend on display_reorder. NULL/empty → '0'.
@@ -13,7 +13,7 @@ function reorderVersion(s) {
 }
 
 function imageUrl(hash, displayReorder) {
-  return `/magma/${hash}/image.png?v=${reorderVersion(displayReorder)}`
+  return `/magma/${canonicalPrefix(hash)}/image.png?v=${reorderVersion(displayReorder)}`
 }
 
 function escapeHtml(s) {
@@ -122,7 +122,7 @@ export function landingPage(samples = [], user = null) {
     .map((s) => {
       const short = s.canonical_hash.slice(0, 8)
       const title = `magma ${short} of size ${s.size}`
-      return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="${imageUrl(s.canonical_hash, s.display_reorder)}" width="128" height="128" alt="${escapeHtml(title)}" loading="lazy" /></a>`
+      return `<a class="thumb" href="/magma/${canonicalPrefix(s.canonical_hash)}" title="${escapeHtml(title)}"><img src="${imageUrl(s.canonical_hash, s.display_reorder)}" width="128" height="128" alt="${escapeHtml(title)}" loading="lazy" /></a>`
     })
     .join('\n        ')
   const sampleBlock = samples.length
@@ -194,7 +194,7 @@ export function allPage(items, user = null) {
     .map((s) => {
       const short = s.canonical_hash.slice(0, 8)
       const title = `magma ${short} of size ${s.size}`
-      return `<a class="thumb" href="/magma/${s.canonical_hash}" title="${escapeHtml(title)}"><img src="${imageUrl(s.canonical_hash, s.display_reorder)}" width="96" height="96" alt="${escapeHtml(title)}" loading="lazy" /></a>`
+      return `<a class="thumb" href="/magma/${canonicalPrefix(s.canonical_hash)}" title="${escapeHtml(title)}"><img src="${imageUrl(s.canonical_hash, s.display_reorder)}" width="96" height="96" alt="${escapeHtml(title)}" loading="lazy" /></a>`
     })
     .join('\n      ')
   const head = pageHead({
@@ -214,7 +214,7 @@ export function sizePage(n, items, comment = null, user = null) {
     .map((it) => {
       const h = it.canonical_hash
       const title = `magma ${h.slice(0, 8)} of size ${n}`
-      return `<a class="thumb" href="/magma/${h}" title="${escapeHtml(title)}"><img src="${imageUrl(h, it.display_reorder)}" width="96" height="96" alt="${escapeHtml(title)}" /></a>`
+      return `<a class="thumb" href="/magma/${canonicalPrefix(h)}" title="${escapeHtml(title)}"><img src="${imageUrl(h, it.display_reorder)}" width="96" height="96" alt="${escapeHtml(title)}" /></a>`
     })
     .join('\n      ')
   const head = pageHead({
@@ -240,6 +240,7 @@ export function sizePage(n, items, comment = null, user = null) {
 
 export function magmaPage(row, user = null) {
   const hash = row.canonical_hash
+  const slug = canonicalPrefix(hash)
   const short = hash.slice(0, 12)
   const submitted = row.submitted_by
     ? `<dd>${escapeHtml(row.submitted_by)}</dd>`
@@ -276,11 +277,11 @@ export function magmaPage(row, user = null) {
           ${row.display_reorder
             ? `<code>${escapeHtml(row.display_reorder)}</code>`
             : `<span class="muted">identity</span>`}
-          <span class="reorder-history-link"><a href="/magma/${hash}/reorder-history">history</a></span>
+          <span class="reorder-history-link"><a href="/magma/${slug}/reorder-history">history</a></span>
           ${user
             ? `<details class="reorder-edit">
               <summary>edit</summary>
-              <form method="post" action="/magma/${hash}/display-reorder">
+              <form method="post" action="/magma/${slug}/display-reorder">
                 <input type="text" name="display_reorder" value="${escapeHtml(row.display_reorder || '')}" placeholder="0,1,2,..." maxlength="4096" />
                 <div><button type="submit">save</button> <span class="muted">submit empty for identity</span></div>
               </form>
@@ -289,13 +290,13 @@ export function magmaPage(row, user = null) {
         </dd>
         <dt>Raw table</dt>
         <dd>
-          <a href="/magma/${hash}/table.txt">canonical order</a>
+          <a href="/magma/${slug}/table.txt">canonical order</a>
           &middot;
-          <a href="/magma/${hash}/table.txt?reorder=${encodeURIComponent(row.display_reorder || '')}">displayed order</a>
+          <a href="/magma/${slug}/table.txt?reorder=${encodeURIComponent(row.display_reorder || '')}">displayed order</a>
         </dd>
         <dt>Equational Theories</dt>
         <dd>
-          <a class="external" href="/magma/${hash}/fme" target="_blank" rel="noopener noreferrer">Finite Magma Explorer</a>
+          <a class="external" href="/magma/${slug}/fme" target="_blank" rel="noopener noreferrer">Finite Magma Explorer</a>
         </dd>
       </dl>
       ${commentSection({
@@ -307,8 +308,8 @@ export function magmaPage(row, user = null) {
               author: row.comment_author,
             }
           : null,
-        postUrl: `/magma/${hash}/comment`,
-        historyUrl: `/magma/${hash}/comments`,
+        postUrl: `/magma/${slug}/comment`,
+        historyUrl: `/magma/${slug}/comments`,
         user,
       })}`
   return layout(`Magma ${short} — Equation 677 Database`, inner, user)
@@ -341,7 +342,7 @@ export function submitResultPage(result, user = null) {
         <p>Right-cancellative: <strong>${result.rightCancellative ? 'yes' : 'no'}</strong></p>
         <p>Idempotent: <strong>${result.idempotent ? 'yes' : 'no'}</strong></p>
         ${freshLine}
-        <p><a href="/magma/${result.hash}">View the isomorphism class &rarr;</a></p>`
+        <p><a href="/magma/${canonicalPrefix(result.hash)}">View the isomorphism class &rarr;</a></p>`
     status = 'accepted'
   }
   const inner = `
@@ -443,8 +444,9 @@ export function recentPage(items, page, hasNext, user = null) {
       </li>`
           }
           const short = it.hash.slice(0, 8)
+          const slug = canonicalPrefix(it.hash)
           const reorderQ = it.hash_reorder ? encodeURIComponent(it.hash_reorder) : ''
-          const thumb = `<img src="/magma/${it.hash}/image.png?reorder=${reorderQ}" width="64" height="64" alt="magma ${escapeHtml(short)}" loading="lazy" />`
+          const thumb = `<img src="/magma/${slug}/image.png?reorder=${reorderQ}" width="64" height="64" alt="magma ${escapeHtml(short)}" loading="lazy" />`
           let desc
           if (it.kind === 'magma') {
             desc = `New magma of size ${it.size}`
@@ -458,9 +460,9 @@ export function recentPage(items, page, hasNext, user = null) {
             desc = preview === null ? `Comment cleared` : `Comment: ${renderCommentContent(preview)}`
           }
           return `<li class="recent-item">
-        <a class="recent-thumb" href="/magma/${it.hash}">${thumb}</a>
+        <a class="recent-thumb" href="/magma/${slug}">${thumb}</a>
         <div class="recent-info">
-          <div class="recent-desc"><a href="/magma/${it.hash}"><code>${escapeHtml(short)}&hellip;</code></a> &middot; ${desc}</div>
+          <div class="recent-desc"><a href="/magma/${slug}"><code>${escapeHtml(short)}&hellip;</code></a> &middot; ${desc}</div>
           <div class="recent-meta">${escapeHtml(it.at)} &middot; ${author}</div>
         </div>
       </li>`
@@ -485,9 +487,10 @@ export function recentPage(items, page, hasNext, user = null) {
 // Fallback when the magma's table is too big to fit in FME's query string.
 // We show the JSON for the user to copy and a button that opens FME bare.
 export function fmePastePage(hash, tableJson, fmeUrl, user = null) {
+  const slug = canonicalPrefix(hash)
   const short = hash.slice(0, 12)
   const head = pageHead({
-    topLinks: [[`/magma/${hash}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
+    topLinks: [[`/magma/${slug}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
     title: 'Open in Finite Magma Explorer',
   })
   const inner = `${head}
@@ -533,9 +536,10 @@ export function fmePastePage(hash, tableJson, fmeUrl, user = null) {
 }
 
 export function reorderHistoryPage(hash, entries, user = null) {
+  const slug = canonicalPrefix(hash)
   const short = hash.slice(0, 12)
   const head = pageHead({
-    topLinks: [[`/magma/${hash}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
+    topLinks: [[`/magma/${slug}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
     title: 'Display reorder history',
     subtitle: `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}.`,
   })
@@ -543,10 +547,10 @@ export function reorderHistoryPage(hash, entries, user = null) {
     ? entries
         .map((e, idx) => {
           const reorderQ = e.display_reorder ? encodeURIComponent(e.display_reorder) : ''
-          const thumb = `<img src="/magma/${hash}/image.png?reorder=${reorderQ}" width="96" height="96" alt="reorder thumbnail" loading="lazy" />`
+          const thumb = `<img src="/magma/${slug}/image.png?reorder=${reorderQ}" width="96" height="96" alt="reorder thumbnail" loading="lazy" />`
           const isCurrent = idx === 0
           const restoreButton = user && !isCurrent
-            ? `<form method="post" action="/magma/${hash}/display-reorder" class="inline-form">
+            ? `<form method="post" action="/magma/${slug}/display-reorder" class="inline-form">
                 <input type="hidden" name="display_reorder" value="${escapeHtml(e.display_reorder || '')}" />
                 <button type="submit">restore</button>
               </form>`
@@ -584,9 +588,10 @@ function renderCommentHistoryList(entries) {
 }
 
 export function commentHistoryPage(hash, entries, user = null) {
+  const slug = canonicalPrefix(hash)
   const short = hash.slice(0, 12)
   const head = pageHead({
-    topLinks: [[`/magma/${hash}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
+    topLinks: [[`/magma/${slug}`, `&larr; magma ${escapeHtml(short)}&hellip;`]],
     title: 'Commentary history',
     subtitle: `${entries.length} edit${entries.length === 1 ? '' : 's'}.`,
   })
@@ -628,7 +633,7 @@ export function apiDocsPage(user = null) {
 
         <section>
           <h3>Hash arguments</h3>
-          <p>Anywhere a <code>:hash</code> appears in a route, you can supply any prefix that uniquely identifies a single magma — e.g., <code>/magma/abcd1234</code> resolves to the full canonical hash and (for HTML routes) redirects to the canonical URL.</p>
+          <p>Each isomorphism class is identified by the SHA-256 (64 hex chars) of its canonical Cayley table. Anywhere a <code>:hash</code> appears in a route you can supply any prefix that uniquely identifies a single magma — e.g., <code>/magma/abcd1234</code> resolves to the full canonical hash. HTML routes redirect to the canonical URL, which uses the first 32 hex chars (128 bits) of the full hash; that prefix is more than enough to be globally unique. API JSON responses always include the full 64-char <code>canonical_hash</code>.</p>
         </section>
 
         <section>
