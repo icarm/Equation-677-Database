@@ -514,7 +514,7 @@ app.post('/size/:n/comment', async (c) => {
   return c.redirect(`/size/${n}`, 302)
 })
 
-app.get('/size/:n/comments', async (c) => {
+app.get('/size/:n/comment-history', async (c) => {
   const n = Number(c.req.param('n'))
   if (!Number.isInteger(n) || n < 1 || n > MAX_SIZE) {
     return c.html(notFoundPage(`Bad size: ${c.req.param('n')}`, c.get('user')), 404)
@@ -530,6 +530,9 @@ app.get('/size/:n/comments', async (c) => {
     .all()
   return c.html(sizeCommentHistoryPage(n, results, c.get('user')))
 })
+
+// Old path — kept as a 301 so any external links / bookmarks survive the rename.
+app.get('/size/:n/comments', (c) => c.redirect(`/size/${c.req.param('n')}/comment-history`, 301))
 
 app.get('/magma/:hash', async (c) => {
   const raw = c.req.param('hash')
@@ -854,7 +857,7 @@ app.post('/magma/:hash/comment', async (c) => {
   return c.redirect(`/magma/${canonicalPrefix(magma.canonical_hash)}`, 302)
 })
 
-app.get('/magma/:hash/comments', async (c) => {
+app.get('/magma/:hash/comment-history', async (c) => {
   const raw = c.req.param('hash')
   const result = await resolveAndFetchHistory(c.env, raw, (op, bind) =>
     c.env.DB
@@ -875,10 +878,13 @@ app.get('/magma/:hash/comments', async (c) => {
   }
   const slug = canonicalPrefix(result.hash)
   if (slug !== raw) {
-    return c.redirect(`/magma/${slug}/comments`, 302)
+    return c.redirect(`/magma/${slug}/comment-history`, 302)
   }
   return c.html(commentHistoryPage(result.hash, result.rows, c.get('user')))
 })
+
+// Old path — kept as a 301 so any external links / bookmarks survive the rename.
+app.get('/magma/:hash/comments', (c) => c.redirect(`/magma/${c.req.param('hash')}/comment-history`, 301))
 
 app.get('/magma/:hash/table.txt', async (c) => {
   const result = await resolveAndFetchRow(c.env, c.req.param('hash'), 'm.r2_key')

@@ -235,7 +235,7 @@ export function sizePage(n, items, comment = null, user = null) {
       ${commentSection({
         comment,
         postUrl: `/size/${n}/comment`,
-        historyUrl: `/size/${n}/comments`,
+        historyUrl: `/size/${n}/comment-history`,
         user,
       })}`
   return layout(`Size ${n} — Equation 677 Database`, inner, user)
@@ -312,7 +312,7 @@ export function magmaPage(row, user = null) {
             }
           : null,
         postUrl: `/magma/${slug}/comment`,
-        historyUrl: `/magma/${slug}/comments`,
+        historyUrl: `/magma/${slug}/comment-history`,
         user,
       })}`
   return layout(`Magma ${short} — Equation 677 Database`, inner, user)
@@ -748,9 +748,9 @@ $ curl -X POST https://eq677.icarm.cloud/submit \\
             <li><a href="/manifest.json"><code>GET /manifest.json</code></a> &mdash; full list of magmas with metadata and a direct R2 download URL for each, plus a <code>size_commentary</code> array of <code>{size, comment}</code> pairs for every size whose current commentary is non-empty.</li>
             <li><code>GET /magma/:hash/table.txt</code> &mdash; the canonical Cayley table as plain text.</li>
             <li><code>GET /magma/:hash/image.png</code> &mdash; rendered PNG. Optional <code>?reorder=&lt;value&gt;</code> overrides the stored permutation; <code>?reorder=</code> (empty) renders identity.</li>
-            <li><code>GET /magma/:hash/comments</code> &mdash; comment edit history.</li>
+            <li><code>GET /magma/:hash/comment-history</code> &mdash; commentary edit history.</li>
             <li><code>GET /magma/:hash/reorder-history</code> &mdash; display-reorder edit history.</li>
-            <li><code>GET /size/:n/comments</code> &mdash; size-level commentary edit history.</li>
+            <li><code>GET /size/:n/comment-history</code> &mdash; size-level commentary edit history.</li>
           </ul>
         </section>
       </div>`
