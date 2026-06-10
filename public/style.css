@@ -1,18 +1,22 @@
 :root {
-  --bg: #f3f6fb;          /* page background */
-  --fg: #1a1a1a;
-  --muted: #566370;
-  --accent: #2a6df4;
-  --border: #dbe3ec;
-  --panel: #fafcfe;       /* cards, header, inputs, image backdrops */
-  --panel-soft: #f6f8fb;  /* faintly recessed panels (e.g. comment body) */
-  --code-bg: #eef2f7;     /* code blocks and inline pre */
-  --row-stripe: #dde4ec;  /* zebra rows */
-  --accent-soft: #eaf1fb; /* pale accent callouts */
+  --bg: #faf6ee;          /* page background: warm paper */
+  --fg: #241f18;
+  --muted: #6e6353;
+  --accent: #b45309;      /* burnt amber / rust */
+  --border: #e7dcc8;
+  --panel: #fffcf5;       /* cards, header, inputs, image backdrops */
+  --panel-soft: #f6f0e3;  /* faintly recessed panels (e.g. comment body) */
+  --code-bg: #f2eadb;     /* code blocks and inline pre */
+  --row-stripe: #efe5d2;  /* zebra rows */
+  --accent-soft: #f9edda; /* pale accent callouts */
 }
 
 * {
   box-sizing: border-box;
+}
+
+a {
+  color: var(--accent);
 }
 
 html, body {
@@ -26,7 +30,7 @@ html, body {
 }
 
 header {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 3px solid var(--accent);
   background: var(--panel);
 }
 
