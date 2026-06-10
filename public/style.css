@@ -1,14 +1,14 @@
 :root {
-  --bg: #faf6ee;          /* page background: warm paper */
-  --fg: #241f18;
-  --muted: #6e6353;
-  --accent: #b45309;      /* burnt amber / rust */
-  --border: #e7dcc8;
-  --panel: #fffcf5;       /* cards, header, inputs, image backdrops */
-  --panel-soft: #f6f0e3;  /* faintly recessed panels (e.g. comment body) */
-  --code-bg: #f2eadb;     /* code blocks and inline pre */
-  --row-stripe: #efe5d2;  /* zebra rows */
-  --accent-soft: #f9edda; /* pale accent callouts */
+  --bg: #f2f5fa;          /* page background: cool blue-cast */
+  --fg: #1a1d24;
+  --muted: #5a6577;
+  --accent: #1d4ed8;      /* deep cobalt — keep well away from elliptic-rank's teal */
+  --border: #d8e0ec;
+  --panel: #fafcfe;       /* cards, header, inputs, image backdrops */
+  --panel-soft: #f5f8fc;  /* faintly recessed panels (e.g. comment body) */
+  --code-bg: #eaeff7;     /* code blocks and inline pre */
+  --row-stripe: #dde4ef;  /* zebra rows */
+  --accent-soft: #e6edfb; /* pale accent callouts */
 }
 
 * {
