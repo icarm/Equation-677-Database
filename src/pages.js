@@ -112,7 +112,7 @@ function layout(title, bodyInner, user) {
     </header>
     <main>${bodyInner}</main>
     <footer>
-      <p class="footer-nav"><a href="/api">API</a> &nbsp;&middot;&nbsp; <a class="external" href="https://github.com/icarm/Equation-677-Database">source</a> &nbsp;&middot;&nbsp; <a class="external" href="https://icarm.io">icarm.io</a></p>
+      <p class="footer-nav"><a href="/api">API</a> &nbsp;&middot;&nbsp; <a href="/acknowledge">acknowledge</a> &nbsp;&middot;&nbsp; <a class="external" href="https://github.com/icarm/Equation-677-Database">source</a> &nbsp;&middot;&nbsp; <a class="external" href="https://icarm.io">icarm.io</a></p>
       <p class="footer-ack">This website is maintained by the NSF Institute for Computer-Aided Reasoning in Mathematics (<a class="external" href="https://icarm.io">ICARM</a>). Please acknowledge ICARM and NSF Grant DMS 2425401 in related publications, projects, or other scholarly work.</p>
     </footer>
   </body>
@@ -758,6 +758,28 @@ $ curl -X POST https://eq677.icarm.cloud/submit \\
         </section>
       </div>`
   return layout('API — Equation 677 Database', inner, user)
+}
+
+export function acknowledgePage(user = null) {
+  const head = pageHead({
+    title: 'Acknowledgement',
+    subtitle:
+      'The Institute for Computer-Aided Reasoning in Mathematics (ICARM) is supported by U.S. National Science Foundation Grant DMS 2425401. The views expressed on these pages do not necessarily reflect those of the NSF.',
+  })
+  const inner = `${head}
+      <div class="api-docs">
+        <section>
+          <h3>Citing this resource</h3>
+          <p>If the Equation 677 Database has been useful in your research, please acknowledge ICARM and NSF Grant DMS 2425401 in related publications, projects, or other scholarly work. Any of the following phrasings is suitable:</p>
+          <ul>
+            <li>&ldquo;Part of this research has been carried out at the Institute for Computer-Aided Reasoning (ICARM), which is supported by NSF Grant DMS 2425401.&rdquo;</li>
+            <li>&ldquo;This research made use of the Equation 677 Database, maintained by the Institute for Computer-Aided Reasoning (ICARM) under NSF Grant DMS 2425401.&rdquo;</li>
+            <li>&ldquo;We are grateful to the Institute for Computer-Aided Reasoning (ICARM) for technical support provided under NSF Grant DMS 2425401.&rdquo;</li>
+          </ul>
+          <p>The views expressed on these pages do not necessarily reflect those of the NSF.</p>
+        </section>
+      </div>`
+  return layout('Acknowledgement — Equation 677 Database', inner, user)
 }
 
 export function notFoundPage(message, user = null, backLink = null) {

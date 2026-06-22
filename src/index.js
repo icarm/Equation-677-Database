@@ -26,6 +26,7 @@ import {
   sizeCommentHistoryPage,
   reorderHistoryPage,
   apiDocsPage,
+  acknowledgePage,
   fmePastePage,
   recentPage,
 } from './pages.js'
@@ -131,6 +132,8 @@ async function listTokens(env, userId) {
 }
 
 app.get('/api', (c) => c.html(apiDocsPage(c.get('user'))))
+
+app.get('/acknowledge', (c) => c.html(acknowledgePage(c.get('user'))))
 
 app.get('/profile', async (c) => {
   const user = c.get('user')
