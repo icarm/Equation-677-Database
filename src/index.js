@@ -675,7 +675,7 @@ app.get('/manifest.json', async (c) => {
   })
 })
 
-const REORDER_BODY_MAX = 16 * 1024 // generous: even n=1000 needs <5 KB
+const REORDER_BODY_MAX = 16 * 1024 // generous: even n=MAX_SIZE (2000) needs <10 KB
 
 app.post('/magma/:hash/display-reorder', async (c) => {
   const user = c.get('user')

@@ -1,4 +1,21 @@
-export const MAX_SIZE = 1000
+// Largest accepted magma order.
+//
+// Two things bind, and both are quadratic in n:
+//
+//   1. magmaToPng (src/png.js) builds a raw truecolor buffer of n * (1 + 3n)
+//      bytes in the Worker before deflating it -- ~3 MB at n = 1000, ~12 MB at
+//      n = 2000, ~48 MB at n = 4000 -- against a 128 MB isolate limit, and the
+//      deflate is O(n^2) CPU.
+//   2. The canonicalizer container takes the table as JSON and caps the body
+//      at 32 MB (DefaultBodyLimit in container/canonicalize-server). A row of
+//      a quasigroup is a permutation, so the body is ~n * (digits + 1) bytes
+//      per row: ~4 MB at n = 1000, ~18 MB at n = 2000, ~42 MB at n = 3000.
+//      That alone caps n at roughly 2600.
+//
+// 2000 sits inside both with headroom. Raising it materially further wants the
+// PNG path bounded (downsample above a threshold, or serve a placeholder) and
+// the container body limit lifted or the payload made denser than JSON.
+export const MAX_SIZE = 2000
 export const COMMENT_MAX = 4096
 
 // Canonical magma URLs use this many hex chars (half of the full sha256). The
