@@ -191,11 +191,22 @@ async function submitMagma(raw, submitter, submitterUserId, env) {
   const idempotent = isIdempotent(table)
 
   const stub = getContainer(env.CANONICALIZER)
-  const canonResp = await stub.fetch('http://container/canonicalize', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ table }),
-  })
+  let canonResp
+  try {
+    canonResp = await stub.fetch('http://container/canonicalize', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ table }),
+    })
+  } catch (err) {
+    // Container crashed or was unreachable mid-request (e.g. OOM-killed on a
+    // pathological input). Surface the friendly error path instead of a 500.
+    return {
+      kind: 'canonicalizer_error',
+      status: 502,
+      detail: `canonicalizer unreachable: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
   if (!canonResp.ok) {
     const detail = await canonResp.text()
     return { kind: 'canonicalizer_error', status: canonResp.status, detail }
