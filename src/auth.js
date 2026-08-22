@@ -14,41 +14,20 @@ const PROVIDERS = {
     authorize: 'https://github.com/login/oauth/authorize',
     token: 'https://github.com/login/oauth/access_token',
     userInfo: 'https://api.github.com/user',
-    scope: 'read:user user:email',
+    // Empty scope = read-only access to public profile info, which is all we
+    // use; the consent screen then only mentions public data.
+    scope: '',
     clientIdEnv: 'GITHUB_CLIENT_ID',
     clientSecretEnv: 'GITHUB_CLIENT_SECRET',
-    mapUser: async (info, accessToken) => ({
+    mapUser: async (info) => ({
       provider_user_id: String(info.id),
-      email: info.email || (await githubPrimaryEmail(accessToken)),
+      // Only the address the user has made public on their profile; we do not
+      // request the user:email scope.
+      email: info.email || null,
       display_name: info.name || info.login || null,
       avatar_url: info.avatar_url || null,
     }),
   },
-}
-
-// /user only returns `email` when the user has set it to public. For private
-// emails we fetch /user/emails (granted by the user:email scope) and pick the
-// primary verified address.
-async function githubPrimaryEmail(accessToken) {
-  try {
-    const r = await fetch('https://api.github.com/user/emails', {
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-        'user-agent': 'eq677-database',
-        accept: 'application/json',
-      },
-    })
-    if (!r.ok) return null
-    const emails = await r.json()
-    if (!Array.isArray(emails)) return null
-    const primary =
-      emails.find((e) => e.primary && e.verified) ||
-      emails.find((e) => e.verified) ||
-      null
-    return primary ? primary.email : null
-  } catch {
-    return null
-  }
 }
 
 function randomHex(bytes) {
@@ -96,7 +75,7 @@ export async function startOAuth(c) {
   const authUrl = new URL(provider.authorize)
   authUrl.searchParams.set('client_id', clientId)
   authUrl.searchParams.set('redirect_uri', redirectUri)
-  authUrl.searchParams.set('scope', provider.scope)
+  if (provider.scope) authUrl.searchParams.set('scope', provider.scope)
   authUrl.searchParams.set('state', state)
   for (const [k, v] of Object.entries(provider.extraAuthorizeParams || {})) {
     authUrl.searchParams.set(k, v)
