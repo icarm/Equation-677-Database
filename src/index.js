@@ -5,6 +5,7 @@ import {
   satisfies677,
   isRightCancellative,
   isIdempotent,
+  fiberMatrixProperties,
   parseReorder,
   applyReorder,
   sha256Hex,
@@ -189,6 +190,7 @@ async function submitMagma(raw, submitter, submitterUserId, env) {
   if (!check.ok) return { kind: 'not_677', x: check.x, y: check.y }
   const rightCancellative = isRightCancellative(table)
   const idempotent = isIdempotent(table)
+  const fiber = fiberMatrixProperties(table, rightCancellative)
 
   const stub = getContainer(env.CANONICALIZER)
   let canonResp
@@ -235,7 +237,7 @@ async function submitMagma(raw, submitter, submitterUserId, env) {
   }
 
   const existing = await env.DB.prepare(
-    'SELECT id, satisfies_255, right_cancellative, idempotent FROM magmas WHERE canonical_hash = ?',
+    'SELECT id, satisfies_255, right_cancellative, idempotent, fiber_matrix_rank FROM magmas WHERE canonical_hash = ?',
   )
     .bind(canonicalHash)
     .first()
@@ -254,6 +256,13 @@ async function submitMagma(raw, submitter, submitterUserId, env) {
         .bind(idempotent ? 1 : 0, existing.id)
         .run()
     }
+    if (existing.fiber_matrix_rank === null) {
+      await env.DB.prepare(
+        'UPDATE magmas SET fiber_matrix_symmetric = ?, fiber_matrix_normal = ?, fiber_matrix_rank = ? WHERE id = ?',
+      )
+        .bind(fiber.symmetric ? 1 : 0, fiber.normal ? 1 : 0, fiber.rank, existing.id)
+        .run()
+    }
     return {
       kind: 'ok',
       fresh: false,
@@ -263,6 +272,7 @@ async function submitMagma(raw, submitter, submitterUserId, env) {
       is255: Boolean(existing.satisfies_255),
       rightCancellative,
       idempotent,
+      fiber,
     }
   }
 
@@ -271,9 +281,9 @@ async function submitMagma(raw, submitter, submitterUserId, env) {
     httpMetadata: { contentType: 'text/plain; charset=utf-8' },
   })
   const result = await env.DB.prepare(
-    'INSERT INTO magmas (canonical_hash, size, satisfies_255, right_cancellative, idempotent, display_reorder, r2_key, submitted_by, submitted_by_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO magmas (canonical_hash, size, satisfies_255, right_cancellative, idempotent, fiber_matrix_symmetric, fiber_matrix_normal, fiber_matrix_rank, display_reorder, r2_key, submitted_by, submitted_by_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
   )
-    .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, idempotent ? 1 : 0, seedReorder, r2Key, submitter, submitterUserId)
+    .bind(canonicalHash, n, is255 ? 1 : 0, rightCancellative ? 1 : 0, idempotent ? 1 : 0, fiber.symmetric ? 1 : 0, fiber.normal ? 1 : 0, fiber.rank, seedReorder, r2Key, submitter, submitterUserId)
     .run()
 
   // Seed the reorder log so its history always starts with the canonical
@@ -301,6 +311,7 @@ async function submitMagma(raw, submitter, submitterUserId, env) {
     is255: Boolean(is255),
     rightCancellative,
     idempotent,
+    fiber,
   }
 }
 
@@ -337,6 +348,9 @@ app.post('/submit', async (c) => {
     satisfies_255: result.is255,
     right_cancellative: result.rightCancellative,
     idempotent: result.idempotent,
+    fiber_matrix_symmetric: result.fiber.symmetric,
+    fiber_matrix_normal: result.fiber.normal,
+    fiber_matrix_rank: result.fiber.rank,
     fresh: result.fresh,
   })
 })
@@ -554,7 +568,8 @@ app.get('/magma/:hash', async (c) => {
     c.env,
     raw,
     `m.id, m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative,
-     m.idempotent, m.display_reorder, m.submitted_at,
+     m.idempotent, m.fiber_matrix_symmetric, m.fiber_matrix_normal, m.fiber_matrix_rank,
+     m.display_reorder, m.submitted_at,
      COALESCE(su.display_name, m.submitted_by) AS submitted_by,
      cl.id AS comment_id, cl.content AS comment_content, cl.created_at AS comment_at,
      cu.display_name AS comment_author`,
@@ -643,6 +658,7 @@ app.get('/manifest.json', async (c) => {
   const [magmasRes, sizeCommentsRes] = await Promise.all([
     c.env.DB.prepare(
       `SELECT m.canonical_hash, m.size, m.satisfies_255, m.right_cancellative, m.idempotent,
+              m.fiber_matrix_symmetric, m.fiber_matrix_normal, m.fiber_matrix_rank,
               m.display_reorder, m.r2_key, m.submitted_at,
               COALESCE(u.display_name, m.submitted_by) AS submitted_by,
               cl.content AS comment
@@ -668,6 +684,9 @@ app.get('/manifest.json', async (c) => {
     satisfies_255: r.satisfies_255 === null ? null : Boolean(r.satisfies_255),
     right_cancellative: r.right_cancellative === null ? null : Boolean(r.right_cancellative),
     idempotent: r.idempotent === null ? null : Boolean(r.idempotent),
+    fiber_matrix_symmetric: r.fiber_matrix_symmetric === null ? null : Boolean(r.fiber_matrix_symmetric),
+    fiber_matrix_normal: r.fiber_matrix_normal === null ? null : Boolean(r.fiber_matrix_normal),
+    fiber_matrix_rank: r.fiber_matrix_rank,
     display_reorder: r.display_reorder,
     comment: r.comment ? r.comment : null,
     submitted_at: r.submitted_at,

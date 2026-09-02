@@ -2,6 +2,7 @@
   "name": "equation-677-database",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"

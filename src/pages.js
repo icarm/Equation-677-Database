@@ -274,6 +274,8 @@ export function magmaPage(row, user = null) {
         <dd>${row.right_cancellative === null || row.right_cancellative === undefined ? '<span class="muted">unknown</span>' : row.right_cancellative ? 'yes' : 'no'}</dd>
         <dt>Idempotent</dt>
         <dd>${row.idempotent === null || row.idempotent === undefined ? '<span class="muted">unknown</span>' : row.idempotent ? 'yes' : 'no'}</dd>
+        <dt>Fiber matrix <span class="muted" title="F[z][x] = number of y with y ◇ x = z">F</span></dt>
+        <dd>${fiberMatrixSummary(row)}</dd>
         <dt>Submitted by</dt>
         ${submitted}
         <dt>Submitted at</dt>
@@ -321,6 +323,16 @@ export function magmaPage(row, user = null) {
   return layout(`Magma ${short} — Equation 677 Database`, inner, user)
 }
 
+// One-line summary of the right-multiplication fiber matrix columns
+// (fiber_matrix_symmetric / _normal / _rank), or "unknown" if not yet backfilled.
+function fiberMatrixSummary(row) {
+  if (row.fiber_matrix_rank === null || row.fiber_matrix_rank === undefined) {
+    return '<span class="muted">unknown</span>'
+  }
+  const yn = (v) => (v ? 'yes' : 'no')
+  return `symmetric: ${yn(row.fiber_matrix_symmetric)} &middot; normal: ${yn(row.fiber_matrix_normal)} &middot; rank: ${row.fiber_matrix_rank} <span class="muted">(nullity ${row.size - row.fiber_matrix_rank})</span>`
+}
+
 export function submitResultPage(result, user = null) {
   let status, body
   if (result.kind === 'parse_error') {
@@ -347,6 +359,7 @@ export function submitResultPage(result, user = null) {
         <p>Satisfies Equation 255: <strong>${result.is255 ? 'yes' : 'no'}</strong>${result.is255 ? '' : ' &mdash; this would resolve the open problem!'}</p>
         <p>Right-cancellative: <strong>${result.rightCancellative ? 'yes' : 'no'}</strong></p>
         <p>Idempotent: <strong>${result.idempotent ? 'yes' : 'no'}</strong></p>
+        <p>Fiber matrix: symmetric <strong>${result.fiber.symmetric ? 'yes' : 'no'}</strong>, normal <strong>${result.fiber.normal ? 'yes' : 'no'}</strong>, rank <strong>${result.fiber.rank}</strong> (nullity ${result.size - result.fiber.rank})</p>
         ${freshLine}
         <p><a href="/magma/${canonicalPrefix(result.hash)}">View the isomorphism class &rarr;</a></p>`
     status = 'accepted'
@@ -661,8 +674,12 @@ export function apiDocsPage(user = null) {
   "satisfies_255": true,
   "right_cancellative": false,
   "idempotent": false,
+  "fiber_matrix_symmetric": false,
+  "fiber_matrix_normal": true,
+  "fiber_matrix_rank": 45,
   "fresh": true
 }</code></pre>
+          <p>The <code>fiber_matrix_*</code> fields describe the right-multiplication fiber matrix <em>F</em>, the <em>n</em>&times;<em>n</em> integer matrix with <code>F[z][x] = #{ y : y ◇ x = z }</code> (column <em>x</em> is the fiber-size profile of <em>R<sub>x</sub></em>). Relabeling the magma conjugates <em>F</em> by a permutation matrix, so these are isomorphism invariants: <code>fiber_matrix_symmetric</code> is <em>F</em> = <em>F</em><sup>T</sup>, <code>fiber_matrix_normal</code> is <em>F&middot;F</em><sup>T</sup> = <em>F</em><sup>T</sup><em>&middot;F</em>, and <code>fiber_matrix_rank</code> is the rank of <em>F</em> over the rationals. For a right-cancellative magma <em>F</em> is the all-ones matrix (symmetric, normal, rank 1).</p>
           <p>Errors: <code>400</code> (parse), <code>401</code> (no auth), <code>415</code> (wrong Content-Type), <code>422</code> (table doesn't satisfy Equation 677 — response includes a witness <code>{x, y}</code>), <code>502</code> (canonicalizer failure).</p>
           <pre><code>$ curl -X POST https://eq677.icarm.cloud/submit \\
        -H 'authorization: Bearer eq677_&lt;token&gt;' \\
@@ -748,7 +765,7 @@ $ curl -X POST https://eq677.icarm.cloud/submit \\
         <section>
           <h3>Useful read endpoints</h3>
           <ul>
-            <li><a href="/manifest.json"><code>GET /manifest.json</code></a> &mdash; full list of magmas with metadata and a direct R2 download URL for each, plus a <code>size_commentary</code> array of <code>{size, comment}</code> pairs for every size whose current commentary is non-empty.</li>
+            <li><a href="/manifest.json"><code>GET /manifest.json</code></a> &mdash; full list of magmas with metadata (including the <code>fiber_matrix_*</code> fields described under <code>POST /submit</code>; <code>null</code> where not yet computed) and a direct R2 download URL for each, plus a <code>size_commentary</code> array of <code>{size, comment}</code> pairs for every size whose current commentary is non-empty.</li>
             <li><code>GET /magma/:hash/table.txt</code> &mdash; the canonical Cayley table as plain text.</li>
             <li><code>GET /magma/:hash/image.png</code> &mdash; rendered PNG. Optional <code>?reorder=&lt;value&gt;</code> overrides the stored permutation; <code>?reorder=</code> (empty) renders identity.</li>
             <li><code>GET /magma/:hash/comment-history</code> &mdash; commentary edit history.</li>
