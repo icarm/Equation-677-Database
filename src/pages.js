@@ -274,7 +274,7 @@ export function magmaPage(row, user = null) {
         <dd>${row.right_cancellative === null || row.right_cancellative === undefined ? '<span class="muted">unknown</span>' : row.right_cancellative ? 'yes' : 'no'}</dd>
         <dt>Idempotent</dt>
         <dd>${row.idempotent === null || row.idempotent === undefined ? '<span class="muted">unknown</span>' : row.idempotent ? 'yes' : 'no'}</dd>
-        <dt><abbr title="F is the n×n matrix with F[z][x] = number of y such that y ◇ x = z (the fiber sizes of right multiplication by x). Its properties below are isomorphism invariants.">Fiber matrix</abbr></dt>
+        <dt><abbr title="F is the n×n matrix with F[z][x] = number of y such that y ◇ x = z (the fiber sizes of right multiplication by x). Whether it is symmetric or normal, and its rank, are isomorphism invariants of the magma.">Fiber matrix</abbr></dt>
         <dd>${fiberMatrixSummary(row)} <span class="muted"><a href="/api#fiber-matrix">what is this?</a></span></dd>
         <dt>Submitted by</dt>
         ${submitted}
@@ -359,7 +359,7 @@ export function submitResultPage(result, user = null) {
         <p>Satisfies Equation 255: <strong>${result.is255 ? 'yes' : 'no'}</strong>${result.is255 ? '' : ' &mdash; this would resolve the open problem!'}</p>
         <p>Right-cancellative: <strong>${result.rightCancellative ? 'yes' : 'no'}</strong></p>
         <p>Idempotent: <strong>${result.idempotent ? 'yes' : 'no'}</strong></p>
-        <p><abbr title="F is the n×n matrix with F[z][x] = number of y such that y ◇ x = z (the fiber sizes of right multiplication by x). Its properties below are isomorphism invariants.">Fiber matrix</abbr>: <abbr title="F = Fᵀ: for all x, z, the number of y with y ◇ x = z equals the number of y with y ◇ z = x.">symmetric</abbr> <strong>${result.fiber.symmetric ? 'yes' : 'no'}</strong>, <abbr title="F·Fᵀ = Fᵀ·F: for all a, b, the number of (x, y, y′) with y ◇ x = a and y′ ◇ x = b equals the number of (y, y′) with y ◇ a = y′ ◇ b.">normal</abbr> <strong>${result.fiber.normal ? 'yes' : 'no'}</strong>, <abbr title="Rank of F over the rationals. Nullity is n − rank. Right-cancellative magmas have F = all ones, rank 1.">rank</abbr> <strong>${result.fiber.rank}</strong> (nullity ${result.size - result.fiber.rank}) <span class="muted"><a href="/api#fiber-matrix">what is this?</a></span></p>
+        <p><abbr title="F is the n×n matrix with F[z][x] = number of y such that y ◇ x = z (the fiber sizes of right multiplication by x). Whether it is symmetric or normal, and its rank, are isomorphism invariants of the magma.">Fiber matrix</abbr>: <abbr title="F = Fᵀ: for all x, z, the number of y with y ◇ x = z equals the number of y with y ◇ z = x.">symmetric</abbr> <strong>${result.fiber.symmetric ? 'yes' : 'no'}</strong>, <abbr title="F·Fᵀ = Fᵀ·F: for all a, b, the number of (x, y, y′) with y ◇ x = a and y′ ◇ x = b equals the number of (y, y′) with y ◇ a = y′ ◇ b.">normal</abbr> <strong>${result.fiber.normal ? 'yes' : 'no'}</strong>, <abbr title="Rank of F over the rationals. Nullity is n − rank. Right-cancellative magmas have F = all ones, rank 1.">rank</abbr> <strong>${result.fiber.rank}</strong> (nullity ${result.size - result.fiber.rank}) <span class="muted"><a href="/api#fiber-matrix">what is this?</a></span></p>
         ${freshLine}
         <p><a href="/magma/${canonicalPrefix(result.hash)}">View the isomorphism class &rarr;</a></p>`
     status = 'accepted'
