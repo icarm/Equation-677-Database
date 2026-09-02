@@ -878,3 +878,10 @@ textarea.fme-paste {
   font-size: 0.9rem;
   color: var(--muted);
 }
+
+/* Inline definitions (e.g. the fiber-matrix fields on the magma page). */
+abbr[title] {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+}
