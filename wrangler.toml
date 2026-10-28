@@ -40,7 +40,7 @@ class_name = "Canonicalizer"
 # Bump this to the new sha after each container change (GHA pushes sha-<commit>).
 image = "registry.cloudflare.com/641ee17fdc075e1c2f3b2cfc7ffdea81/eq677-canonicalizer:sha-d2a147def73d3270ff7a23742c072cc3add82936"
 instance_type = "standard-2"
-max_instances = 5
+max_instances = 1
 
 [[durable_objects.bindings]]
 name = "CANONICALIZER"
