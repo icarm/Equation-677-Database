@@ -26,6 +26,17 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
+// Timestamps come from SQLite's CURRENT_TIMESTAMP, which is UTC; say so
+// wherever one is displayed.
+function utcTime(ts) {
+  const text = `${escapeHtml(ts)} UTC`
+  // D1's CURRENT_TIMESTAMP form, "YYYY-MM-DD HH:MM:SS" in UTC. Wrapped in a
+  // <time> so relative-time.js (loaded where wanted) can show "3 hours ago",
+  // keeping the exact time as the tooltip.
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(ts)) return text
+  return `<time datetime="${ts.replace(' ', 'T')}Z" title="${text}">${text}</time>`
+}
+
 // Render user-provided commentary text as HTML. Like escapeHtml, but also
 // turns `magma#<hex>` tokens (1–64 lowercase hex chars) into anchor tags
 // pointing at the matching magma page. The hex chars are safe to inline
@@ -458,7 +469,7 @@ export function recentPage(items, page, hasNext, user = null) {
         <a class="recent-thumb recent-size-thumb" href="/size/${it.size}">${badge}</a>
         <div class="recent-info">
           <div class="recent-desc"><a href="/size/${it.size}">size ${it.size}</a> &middot; ${desc}</div>
-          <div class="recent-meta">${escapeHtml(it.at)} &middot; ${author}</div>
+          <div class="recent-meta">${utcTime(it.at)} &middot; ${author}</div>
         </div>
       </li>`
           }
@@ -482,7 +493,7 @@ export function recentPage(items, page, hasNext, user = null) {
         <a class="recent-thumb" href="/magma/${slug}">${thumb}</a>
         <div class="recent-info">
           <div class="recent-desc"><a href="/magma/${slug}"><code>${escapeHtml(short)}&hellip;</code></a> &middot; ${desc}</div>
-          <div class="recent-meta">${escapeHtml(it.at)} &middot; ${author}</div>
+          <div class="recent-meta">${utcTime(it.at)} &middot; ${author}</div>
         </div>
       </li>`
         })
@@ -499,7 +510,8 @@ export function recentPage(items, page, hasNext, user = null) {
     : ''
   const inner = `${head}
       <ul class="recent-list">${list}</ul>
-      ${pager}`
+      ${pager}
+      <script src="/relative-time.js" defer></script>`
   return layout('Recent activity — Equation 677 Database', inner, user)
 }
 
